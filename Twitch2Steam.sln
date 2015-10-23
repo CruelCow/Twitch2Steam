@@ -5,6 +5,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Twitch2Steam", "Twitch2Stea
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IRC", "..\thresher\IRC\IRC.csproj", "{EAA2EBA6-4510-498D-9FF2-267FF825FD94}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SteamKit2", "..\SteamKit\SteamKit2\SteamKit2\SteamKit2.csproj", "{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug_SSL|Any CPU = Debug_SSL|Any CPU
@@ -39,6 +41,18 @@ Global
 		{EAA2EBA6-4510-498D-9FF2-267FF825FD94}.SSL|Any CPU.Build.0 = SSL|Any CPU
 		{EAA2EBA6-4510-498D-9FF2-267FF825FD94}.Trace|Any CPU.ActiveCfg = Trace|Any CPU
 		{EAA2EBA6-4510-498D-9FF2-267FF825FD94}.Trace|Any CPU.Build.0 = Trace|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Debug_SSL|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Debug_SSL|Any CPU.Build.0 = Debug|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Public|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Public|Any CPU.Build.0 = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.SSL|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.SSL|Any CPU.Build.0 = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Trace|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB5BF07-BB56-402A-97A3-A41C6444C6A5}.Trace|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

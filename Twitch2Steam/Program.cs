@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Sharkbite.Irc;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,11 +12,15 @@ namespace Twitch2Steam
         static void Main(string[] args)
         {
             Console.WriteLine("Starting Bot");
-            var sb = new SteamBot("YourSteamLoginNameHere", "YourSteamPasswordHere");
-            var tb = new TwitchBot(sb);
-            sb.loop();
-            tb.Exit();
-            sb.Exit();
+            using (var steamBot = new SteamBot("YourSteamLoginNameHere", "YourSteamPasswordHere"))
+            using (var twitchBot = new TwitchBot())
+            {
+                Glue glue = new Glue(twitchBot, steamBot);
+
+                steamBot.loop();
+            }
+            //tb.Exit();
+            //sb.Exit();
         }
     }
 }

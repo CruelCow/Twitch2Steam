@@ -7,14 +7,15 @@ using Sharkbite.Irc;
 
 namespace Twitch2Steam
 {
-    public class TwitchBot
+    public class TwitchBot : IDisposable
     {
         private Connection connection;
-        private SteamBot sb;
+        public event PublicMessageEventHandler OnPublicMessage;
 
-        public TwitchBot(SteamBot sb)
-        {
-            this.sb = sb;
+        public TwitchBot()
+        {        
+            //messageHandler += delegate(String channel, String user, String message) { Console.WriteLine(user + ": " + message); };
+
             string server = "irc.twitch.tv";
             string nick = "YourTwitchNameHere";
             string pw = "oauth:YourOauthKeyHere";
@@ -31,7 +32,12 @@ namespace Twitch2Steam
             connection.Listener.OnRegistered += new RegisteredEventHandler(OnRegistered);
 
             //Listen for any messages sent to the channel
-            connection.Listener.OnPublic += new PublicMessageEventHandler(OnPublic);
+            //connection.Listener.OnPublic += new PublicMessageEventHandler(OnPublic);
+            connection.Listener.OnPublic += delegate(UserInfo user, string channel, string message) 
+                { 
+                    if(OnPublicMessage != null)
+                        OnPublicMessage.Invoke(user, channel, message); 
+                };
 
             //Listen for bot commands sent as private messages
             connection.Listener.OnPrivate += new PrivateMessageEventHandler(OnPrivate);
@@ -52,9 +58,19 @@ namespace Twitch2Steam
             connection.Connect();
         }
 
+        public void Join(String channel)
+        {
+            connection.Sender.Join(channel);
+        }
+
+        public void Leave(String channel)
+        {
+            connection.Sender.Part(channel);
+        }
+
         private void onJoin(UserInfo user, string channel)
         {
-            Console.WriteLine(user.Nick + " joined");
+            Console.WriteLine(user.Nick + " joined " + channel);
         }
 
         private void OnQuit(UserInfo user, string reason)
@@ -64,7 +80,10 @@ namespace Twitch2Steam
 
         void OnPart(UserInfo user, string channel, string reason)
         {
-            Console.WriteLine(user.Nick + " parted");
+            if(reason == "")
+                Console.WriteLine(user.Nick + " parted from " + channel);
+            else
+                Console.WriteLine(user.Nick + " parted from " + channel + " because " + reason);
         }
 
         void OnPing(String message)
@@ -78,8 +97,9 @@ namespace Twitch2Steam
         }
 
         public void Exit()
-        {
-            connection.Disconnect("Goodbye Cruel World");
+        {           
+            if(connection.Connected)
+                connection.Disconnect("Goodbye Cruel World");
         }
 
         public void OnRegistered()
@@ -109,14 +129,6 @@ namespace Twitch2Steam
             }
         }
 
-        public void OnPublic(UserInfo user, string channel, string message)
-        {
-            Console.WriteLine(user.Nick + ": " + message);
-            sb.Broadcast(user.Nick + ": " + message);
-            //Echo back any public messages
-            //connection.Sender.PublicMessage(channel, user.Nick + " said, " + message);
-        }
-
         public void OnPrivate(UserInfo user, string message)
         {
             Console.WriteLine(user.Nick + " whispered to me: " + message);
@@ -140,6 +152,11 @@ namespace Twitch2Steam
             //If this disconnection was involutary then you should have received an error
             //message ( from OnError() ) before this was called.
             Console.WriteLine("Connection to the server has been closed.");
+        }
+
+        public void Dispose()
+        {
+            Exit();
         }
     }
 }
