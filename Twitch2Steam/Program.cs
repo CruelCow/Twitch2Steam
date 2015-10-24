@@ -12,7 +12,7 @@ namespace Twitch2Steam
         static void Main(string[] args)
         {
             Console.WriteLine("Starting Bot");
-            using (var steamBot = new SteamBot("YourSteamLoginNameHere", "YourSteamPasswordHere"))
+            using (var steamBot = new SteamBot())
             using (var twitchBot = new TwitchBot())
             {
                 Glue glue = new Glue(twitchBot, steamBot);

@@ -1,0 +1,28 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Twitch2Steam" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="Port" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">443</Value>
+    </Setting>
+    <Setting Name="IrcServer" Type="System.String" Scope="User">
+      <Value Profile="(Default)">irc.twitch.tv</Value>
+    </Setting>
+    <Setting Name="IrcName" Type="System.String" Scope="User">
+      <Value Profile="(Default)">YourTwitchNameHere</Value>
+    </Setting>
+    <Setting Name="IrcPassword" Type="System.String" Scope="User">
+      <Value Profile="(Default)">oauth:YourOauthKeyHere</Value>
+    </Setting>
+    <Setting Name="Admins" Type="System.Collections.Specialized.StringCollection" Scope="User">
+      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
+&lt;ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" /&gt;</Value>
+    </Setting>
+    <Setting Name="SteamName" Type="System.String" Scope="User">
+      <Value Profile="(Default)">YourSteamLoginNameHere</Value>
+    </Setting>
+    <Setting Name="SteamPassword" Type="System.String" Scope="User">
+      <Value Profile="(Default)">YourSteamPasswordHere</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

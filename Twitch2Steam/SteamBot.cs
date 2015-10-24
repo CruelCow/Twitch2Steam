@@ -8,6 +8,7 @@ using SteamKit2;
 namespace Twitch2Steam
 {
     public delegate void FriendMessageEventHandler (SteamFriends.FriendMsgCallback callback);
+    //public delegate void FriendAcceptedEventHandler(SteamFriends.FriendsListCallback.Friend friend);
 
     public class SteamBot : IDisposable
     {
@@ -20,16 +21,12 @@ namespace Twitch2Steam
         private volatile bool isRunning;
 
         public event FriendMessageEventHandler OnFriendMessage;
+        //public event FriendAcceptedEventHandler OnFriendAccepted;
 
-        private readonly String user, pass;
-
-        public SteamBot(String user, String pass)
+        public SteamBot()
         {
-            this.user = user;
-            this.pass = pass;
-
             // create our steamclient instance
-            steamClient = new SteamClient(System.Net.Sockets.ProtocolType.Tcp);
+            steamClient = new SteamClient();
             // create the callback manager which will route callbacks to function calls
             manager = new CallbackManager(steamClient);
 
@@ -67,7 +64,7 @@ namespace Twitch2Steam
             while (isRunning)
             {
                 // in order for the callbacks to get routed, they need to be handled by the manager
-                manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                manager.RunWaitCallbacks(TimeSpan.FromSeconds(10));
             }
         }
 
@@ -81,12 +78,12 @@ namespace Twitch2Steam
                 return;
             }
 
-            Console.WriteLine("Connected to Steam! Logging in '{0}'...", user);
+            Console.WriteLine("Connected to Steam! Logging in '{0}'...", Settings.Default.SteamName);
 
             steamUser.LogOn(new SteamUser.LogOnDetails
             {
-                Username = user,
-                Password = pass,
+                Username = Settings.Default.SteamName,
+                Password = Settings.Default.SteamPassword,
             });
         }
 
@@ -142,6 +139,10 @@ namespace Twitch2Steam
             steamFriends.SendChatMessage(target, EChatEntryType.ChatMsg, message);
         }
 
+        public bool IsFriend(SteamID target)
+        {
+            return steamFriends.GetFriendRelationship(target) == EFriendRelationship.Friend;
+        }
 
         public void Broadcast(String message)
         {
@@ -158,13 +159,18 @@ namespace Twitch2Steam
         {
             // at this point, the client has received it's friends list
 
-            foreach (var friend in callback.FriendList)
+            foreach (SteamFriends.FriendsListCallback.Friend friend in callback.FriendList)
             {
                 if (friend.Relationship == EFriendRelationship.RequestRecipient)
                 {
                     // this user has added us, let's add him back
                     steamFriends.AddFriend(friend.SteamID);
                     SendChatMessage(friend.SteamID, "HI THERE!");
+                    SendChatMessage(friend.SteamID, "Say 'help' for a list of commands");
+                    /*if (OnFriendAccepted != null)
+                    {
+                        OnFriendAccepted.Invoke(friend);
+                    }*/
                 }
             }
         }
@@ -172,7 +178,7 @@ namespace Twitch2Steam
         private void OnFriendAdded(SteamFriends.FriendAddedCallback callback)
         {
             // someone accepted our friend request, or we accepted one
-            Console.WriteLine("{0} is now a friend", callback.PersonaName);
+            Console.WriteLine("{0} is now a friend", SteamIdToName(callback.SteamID));
         }
 
         private void OnPersonaState(SteamFriends.PersonaStateCallback callback)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+//using Twitch2Steam.Properties;
 using Sharkbite.Irc;
 
 namespace Twitch2Steam
@@ -16,13 +17,19 @@ namespace Twitch2Steam
         {        
             //messageHandler += delegate(String channel, String user, String message) { Console.WriteLine(user + ": " + message); };
 
-            string server = "irc.twitch.tv";
-            string nick = "YourTwitchNameHere";
-            string pw = "oauth:YourOauthKeyHere";
+            //string server = "irc.twitch.tv";
+            //string nick = "YourTwitchNameHere";
+            //string pw = "oauth:YourOauthKeyHere";
 
-            ConnectionArgs cargs = new ConnectionArgs(nick, server);
-            cargs.ServerPassword = pw;
+            //ConnectionArgs cargs = new ConnectionArgs(nick, server);
+            //cargs.ServerPassword = pw;
             //cargs.Port = 6697; //SSL
+
+
+            ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, Settings.Default.IrcServer);
+            cargs.Port = Settings.Default.Port;
+            cargs.ServerPassword = Settings.Default.IrcPassword;            
+
 
             //When creating a Connection two additional protocols may be
             //enabled: CTCP and DCC. In this example we will disable them
@@ -110,17 +117,6 @@ namespace Twitch2Steam
             //caught.
             try
             {
-                //The connection is ready so lets join a channel.
-                //We can join any number of channels simultaneously but
-                //one will do for now.
-                //All commands are sent to IRC using the Sender object
-                //from the Connection.
-                //connection.Sender.Join("#CruelCow");
-                //connection.Sender.Join("#cruelcow");
-                //connection.Sender.Join("#trumpsc");
-                //connection.Sender.
-                //connection.Sender.PublicMessage("CruelCow", "Hashtags suck");
-                //connection.Sender.PublicMessage("#CruelCow", "I connected! PogChamp ");
                 connection.Sender.PrivateMessage("cruelcow", "I learned to whisper! " + DateTime.Now.ToShortTimeString());
             }
             catch (Exception e)
@@ -157,6 +153,11 @@ namespace Twitch2Steam
         public void Dispose()
         {
             Exit();
+        }
+
+        public void SendMessage(String channel, String text)
+        {
+            connection.Sender.PublicMessage(channel, text);
         }
     }
 }
