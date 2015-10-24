@@ -90,7 +90,7 @@ namespace Twitch2Steam
                     //Only admins may shutdown the server
                     if (admins.Contains(callback.Sender))
                     {
-                        steamBot.SendChatMessage(callback.Sender, "FINALLY! t(^.^t) *explodes*");
+                        steamBot.SendChatMessage(callback.Sender, "FINALLY! :steamhappy: *explodes*");
                         System.Threading.Thread.Sleep(1000);
                         Exit();
                     }
@@ -156,7 +156,7 @@ namespace Twitch2Steam
                                 writeAdmins();
                                 Console.WriteLine("***ADMIN ADDED***");
                                 steamBot.SendChatMessage(callback.Sender, steamBot.SteamIdToName(newAdminId) + " is now admin.");
-                                steamBot.SendChatMessage(newAdminId, "You're my master now! Weeee!");
+                                steamBot.SendChatMessage(newAdminId, "You're my master now! Weeee! :steamhappy:");
                             }
                         }
                         else
@@ -168,7 +168,7 @@ namespace Twitch2Steam
                     else
                     {
                         Console.WriteLine("***DENIED***");
-                        steamBot.SendChatMessage(callback.Sender, "Nice Try!");
+                        steamBot.SendChatMessage(callback.Sender, "Nice Try! :steamfacepalm:");
                     }
                 }
                 #endregion
@@ -260,7 +260,7 @@ namespace Twitch2Steam
                         adminMessage += "\n\t" + steamBot.SteamIdToName(admin) + " is ";
                         if (admin == callback.Sender)
                         {
-                            adminMessage += "my favorite master";
+                            adminMessage += "my favorite master :steamhappy:";
                         }
                         else
                         {
@@ -293,7 +293,7 @@ namespace Twitch2Steam
                             }
                             else
                             {
-                                steamBot.SendChatMessage(callback.Sender, "You're not even part of that channel o0");
+                                steamBot.SendChatMessage(callback.Sender, "You're not even part of that channel :steamfacepalm:");
                             }
                         }
                         else
@@ -303,7 +303,7 @@ namespace Twitch2Steam
                     }
                     else
                     {
-                        steamBot.SendChatMessage(callback.Sender, "I DON'T WANNA");
+                        steamBot.SendChatMessage(callback.Sender, "I DON'T WANNA :steammocking:");
                     }
                 }
                 #endregion
@@ -322,11 +322,11 @@ namespace Twitch2Steam
                             {
                                 if (steamBot.IsFriend(target))
                                 {
-                                    steamBot.SendChatMessage(target, steamBot.SteamIdToName(callback.Sender) + " wanted my to tell you \"" + data[2] + "\"");
+                                    steamBot.SendChatMessage(target, "My master " + steamBot.SteamIdToName(callback.Sender) + " wanted my to tell you \"" + data[2] + "\"");
                                 }
                                 else
                                 {
-                                    steamBot.SendChatMessage(callback.Sender, "That user is not my friend :'(");
+                                    steamBot.SendChatMessage(callback.Sender, "That user is not my friend :steamsad:");
                                 }
                             }
                             else
@@ -341,7 +341,7 @@ namespace Twitch2Steam
                     }
                     else
                     {
-                        steamBot.SendChatMessage(callback.Sender, "I DON'T WANNA");
+                        steamBot.SendChatMessage(callback.Sender, "I DON'T WANNA :steammocking:");
                     }
                 }
                 #endregion
@@ -352,7 +352,7 @@ namespace Twitch2Steam
                 }
                 #endregion
                 #region usage
-                else if (new String[] { "help", "halp", "usage" }.Contains(lowerMessage))
+                else if (new String[] { "help", "halp", "usage", "--help", "/?", "wtf" }.Contains(lowerMessage))
                 {
                     steamBot.SendChatMessage(callback.Sender, usage);
                 }                
