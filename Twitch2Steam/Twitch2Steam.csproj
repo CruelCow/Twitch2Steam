@@ -71,6 +71,7 @@
   <ItemGroup>
     <Compile Include="DictionaryHelper.cs" />
     <Compile Include="Glue.cs" />
+    <Compile Include="CustomHandler.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Settings.cs" />

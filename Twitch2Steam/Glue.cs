@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
 using System.Collections.Specialized;
+using SteamKit2.Internal;
 
 namespace Twitch2Steam
 {
@@ -17,7 +18,7 @@ namespace Twitch2Steam
         private readonly SteamBot steamBot;
         private readonly Dictionary<String, IList<SteamID>> subscribers;
 
-        private readonly IList<SteamID> admins;
+        private readonly IList<SteamID> adminList;
 
         public Glue(TwitchBot twitchBot, SteamBot steamBot)
         {
@@ -25,12 +26,13 @@ namespace Twitch2Steam
             this.twitchBot = twitchBot;
             this.steamBot = steamBot;
             subscribers = new Dictionary<String, IList<SteamID>>();
-            admins = LoadAdmins();
+            adminList = LoadAdmins();
             
             twitchBot.OnPublicMessage += delegate(UserInfo user, String channel, String message) { Console.WriteLine(user.Nick + ": " + message); };
             //twitchBot.OnPublicMessage += delegate(UserInfo user, String channel, String message) { steamBot.Broadcast(user.Nick + ": " + message); };
             twitchBot.OnPublicMessage += OnTwitchPublicMessage;
             steamBot.OnFriendMessage += OnSteamFriendMessage;
+            steamBot.OnOfflineMessage += steamBot_OnOfflineMessage;
         }
 
         private IList<SteamID> LoadAdmins()
@@ -49,7 +51,7 @@ namespace Twitch2Steam
         private void writeAdmins()
         {
             StringCollection sc = new StringCollection();
-            foreach (var admin in admins)
+            foreach (var admin in adminList)
             {
                 sc.Add(admin.ToString());
             }
@@ -72,66 +74,87 @@ namespace Twitch2Steam
                 }
             }
         }
+        
+        private void steamBot_OnOfflineMessage(SteamID user, List<CMsgClientFSGetFriendMessageHistoryResponse.FriendMessage> messages)
+        {
+            foreach (var message in messages)
+            {
+                if(message.unread)
+                    handleCommand(user, message.message);
+            }
+        }
 
         private void OnSteamFriendMessage(SteamFriends.FriendMsgCallback callback)
         {
+            switch (callback.EntryType)
+            {
+                case EChatEntryType.Typing: //Ignore typing notifications
+                    break;
+
+                case EChatEntryType.ChatMsg:
+                    handleCommand(callback.Sender, callback.Message);
+                    break;
+
+                default:
+                    Console.WriteLine("->Unusual chat message of type {0},  from {1} with content '{2}'.", callback.EntryType, steamBot.SteamIdToName(callback.Sender), callback.Message);
+                    break;
+            }
+        }
+
+        private void handleCommand(SteamID Sender, String Message)
+        {
             lock (myLock)
             {
-                if (callback.EntryType == EChatEntryType.Typing) //We really don't care about typing notifications
-                { 
-                    return;
-                }
-
-                String lowerMessage = callback.Message.ToLower();
+                String lowerMessage = Message.ToLower();
 
                 #region self destruct
                 if (lowerMessage == "die" || lowerMessage.StartsWith("self destruct"))
                 {
                     //Only admins may shutdown the server
-                    if (admins.Contains(callback.Sender))
+                    if (adminList.Contains(Sender))
                     {
-                        steamBot.SendChatMessage(callback.Sender, "FINALLY! :steamhappy: *explodes*");
-                        System.Threading.Thread.Sleep(1000);
+                        steamBot.SendChatMessage(Sender, "FINALLY! :steamhappy: *explodes*");
+                        System.Threading.Thread.Sleep(1000); //TODO FIX UGLY AF
                         Exit();
                     }
                     else
                     {
-                        steamBot.SendChatMessage(callback.Sender, "You are not my master! >:( I will tell on you.");
-                        foreach (var admin in admins)
-                            steamBot.SendChatMessage(admin, steamBot.SteamIdToName(callback.Sender) + " tried to kill me D:");
+                        steamBot.SendChatMessage(Sender, "You are not my master! >:( I will tell on you.");
+                        foreach (var admin in adminList)
+                            steamBot.SendChatMessage(admin, steamBot.SteamIdToName(Sender) + " tried to kill me D:");
                     }
                 }
                 #endregion
                 #region revoke admin
                 else if (lowerMessage.StartsWith("revoke admin "))
                 {
-                    if (admins.Contains(callback.Sender))
+                    if (adminList.Contains(Sender))
                     {
-                        String admin = callback.Message.Split(new char[] { ' ' }, 3)[2];
+                        String admin = Message.Split(new char[] { ' ' }, 3)[2];
                         SteamID adminId = new SteamID(admin);
 
                         if (adminId.IsValid)
                         {
-                            if (admins.Contains(adminId))
+                            if (adminList.Contains(adminId))
                             {
-                                admins.Remove(adminId);
-                                steamBot.SendChatMessage(callback.Sender, "Admin access of " + steamBot.SteamIdToName(adminId) + " revoked");
-                                steamBot.SendChatMessage(adminId, "Your admin access has been revoked by " + steamBot.SteamIdToName(callback.Sender));
+                                adminList.Remove(adminId);
+                                steamBot.SendChatMessage(Sender, "Admin access of " + steamBot.SteamIdToName(adminId) + " revoked");
+                                steamBot.SendChatMessage(adminId, "Your admin access has been revoked by " + steamBot.SteamIdToName(Sender));
                                 writeAdmins();
                             }
                             else
                             {
-                                steamBot.SendChatMessage(callback.Sender, steamBot.SteamIdToName(adminId) + " wasn't even an admin to begin with!");
+                                steamBot.SendChatMessage(Sender, steamBot.SteamIdToName(adminId) + " wasn't even an admin to begin with!");
                             }
                         }
                         else
                         {
-                            steamBot.SendChatMessage(callback.Sender, "'" + admin + "' is not a valid SteamID");
+                            steamBot.SendChatMessage(Sender, "'" + admin + "' is not a valid SteamID");
                         }
                     }
                     else
                     {
-                        steamBot.SendChatMessage(callback.Sender, "You don't get to tell me stuff!");
+                        steamBot.SendChatMessage(Sender, "You don't get to tell me stuff!");
                     }
                 }
                 #endregion
@@ -140,35 +163,35 @@ namespace Twitch2Steam
                 {
                     //Only admins may make users admins.
                     //The only exception is when there are no admins yet.
-                    if (admins.Contains(callback.Sender) || admins.Count == 0)
+                    if (adminList.Contains(Sender) || adminList.Count == 0)
                     {
-                        String newAdmin = callback.Message.Split(new char[] { ' ' }, 3)[2];
+                        String newAdmin = Message.Split(new char[] { ' ' }, 3)[2];
                         SteamID newAdminId = new SteamID(newAdmin);
                         if (newAdminId.IsValid)
                         {
-                            if (admins.Contains(newAdminId))
+                            if (adminList.Contains(newAdminId))
                             {
-                                steamBot.SendChatMessage(callback.Sender, steamBot.SteamIdToName(newAdminId) + " already is admin.");
+                                steamBot.SendChatMessage(Sender, steamBot.SteamIdToName(newAdminId) + " already is admin.");
                             }
                             else
                             {
-                                admins.Add(newAdminId);
+                                adminList.Add(newAdminId);
                                 writeAdmins();
                                 Console.WriteLine("***ADMIN ADDED***");
-                                steamBot.SendChatMessage(callback.Sender, steamBot.SteamIdToName(newAdminId) + " is now admin.");
+                                steamBot.SendChatMessage(Sender, steamBot.SteamIdToName(newAdminId) + " is now admin.");
                                 steamBot.SendChatMessage(newAdminId, "You're my master now! Weeee! :steamhappy:");
                             }
                         }
                         else
                         {
                             Console.WriteLine("\tSteamID is invalid");
-                            steamBot.SendChatMessage(callback.Sender, "Invalid SteamID");
+                            steamBot.SendChatMessage(Sender, "Invalid SteamID");
                         }
                     }
                     else
                     {
                         Console.WriteLine("***DENIED***");
-                        steamBot.SendChatMessage(callback.Sender, "Nice Try! :steamfacepalm:");
+                        steamBot.SendChatMessage(Sender, "Nice Try! :steamfacepalm:");
                     }
                 }
                 #endregion
@@ -178,7 +201,7 @@ namespace Twitch2Steam
                     String channels = "";
                     foreach (var key in subscribers.Keys)
                     {
-                        if (subscribers[key].Contains(callback.Sender))
+                        if (subscribers[key].Contains(Sender))
                             channels += key + " ";
                     }
 
@@ -187,7 +210,7 @@ namespace Twitch2Steam
 
                     channels = "You are subscribed to the following channel(s): " + channels;
 
-                    steamBot.SendChatMessage(callback.Sender, channels);
+                    steamBot.SendChatMessage(Sender, channels);
                 }
                 #endregion
                 #region shut up
@@ -197,7 +220,7 @@ namespace Twitch2Steam
                     foreach (var key in subscribers.Keys)
                     {
                         var subs = subscribers[key];
-                        subs.Remove(callback.Sender);
+                        subs.Remove(Sender);
                         if (subs.Count == 0)
                             toRemove.Add(key);
                     }
@@ -208,7 +231,7 @@ namespace Twitch2Steam
                         twitchBot.Leave(key);
                     }
 
-                    steamBot.SendChatMessage(callback.Sender, String.Format("Removed you from {0} channel(s)", toRemove.Count));
+                    steamBot.SendChatMessage(Sender, String.Format("Removed you from {0} channel(s)", toRemove.Count));
                 }
                 #endregion
                 #region subscribe
@@ -227,7 +250,7 @@ namespace Twitch2Steam
                         twitchBot.Join(channel);
                     }
 
-                    channelSubs.Add(callback.Sender);
+                    channelSubs.Add(Sender);
                 }
                 #endregion
                 #region unsubscribe
@@ -242,7 +265,7 @@ namespace Twitch2Steam
                     if (channelSubs == null)
                         return;
 
-                    channelSubs.Remove(callback.Sender);
+                    channelSubs.Remove(Sender);
                     if (channelSubs.Count == 0)
                     {
                         subscribers.Remove(channel);
@@ -255,10 +278,10 @@ namespace Twitch2Steam
                 {
                     String adminMessage = "";
 
-                    foreach (var admin in admins)
+                    foreach (var admin in adminList)
                     {
                         adminMessage += "\n\t" + steamBot.SteamIdToName(admin) + " is ";
-                        if (admin == callback.Sender)
+                        if (admin == Sender)
                         {
                             adminMessage += "my favorite master :steamhappy:";
                         }
@@ -268,17 +291,17 @@ namespace Twitch2Steam
                         }
                     }
                     
-                    adminMessage += "\n" + admins.Count + " master(s) total";
+                    adminMessage += "\n" + adminList.Count + " master(s) total";
 
-                    steamBot.SendChatMessage(callback.Sender, adminMessage);
+                    steamBot.SendChatMessage(Sender, adminMessage);
                 }
                 #endregion
                 #region say
                 else if(lowerMessage.StartsWith("say "))
                 {                    
-                    if (admins.Contains(callback.Sender))
+                    if (adminList.Contains(Sender))
                     {
-                        String[] data = callback.Message.Split(new char[] { ' ' }, 3);
+                        String[] data = Message.Split(new char[] { ' ' }, 3);
                         String channel = data[1].ToLower();
 
                         if (!channel.StartsWith("#"))
@@ -287,32 +310,32 @@ namespace Twitch2Steam
                         if (data.Length == 3)
                         {
 
-                            if (subscribers.Keys.Contains(channel) && subscribers[channel].Contains(callback.Sender))
+                            if (subscribers.Keys.Contains(channel) && subscribers[channel].Contains(Sender))
                             {
                                 twitchBot.SendMessage(channel, data[2]);
                             }
                             else
                             {
-                                steamBot.SendChatMessage(callback.Sender, "You're not even part of that channel :steamfacepalm:");
+                                steamBot.SendChatMessage(Sender, "You're not even part of that channel :steamfacepalm:");
                             }
                         }
                         else
                         {
-                            steamBot.SendChatMessage(callback.Sender, "Yeah, but WHAT should I say?");
+                            steamBot.SendChatMessage(Sender, "Yeah, but WHAT should I say?");
                         }
                     }
                     else
                     {
-                        steamBot.SendChatMessage(callback.Sender, "I DON'T WANNA :steammocking:");
+                        steamBot.SendChatMessage(Sender, "I DON'T WANNA :steammocking:");
                     }
                 }
                 #endregion
                 #region whisper
                 else if (lowerMessage.StartsWith("whisper "))
                 {
-                    if (admins.Contains(callback.Sender))
+                    if (adminList.Contains(Sender))
                     {
-                        String[] data = callback.Message.Split(new char[] { ' ' }, 3);
+                        String[] data = Message.Split(new char[] { ' ' }, 3);
                         String user = data[1].ToLower();
 
                         if (data.Length == 3)
@@ -322,50 +345,50 @@ namespace Twitch2Steam
                             {
                                 if (steamBot.IsFriend(target))
                                 {
-                                    steamBot.SendChatMessage(target, "My master " + steamBot.SteamIdToName(callback.Sender) + " wanted my to tell you \"" + data[2] + "\"");
+                                    steamBot.SendChatMessage(target, "My master " + steamBot.SteamIdToName(Sender) + " wanted my to tell you \"" + data[2] + "\"");
                                 }
                                 else
                                 {
-                                    steamBot.SendChatMessage(callback.Sender, "That user is not my friend :steamsad:");
+                                    steamBot.SendChatMessage(Sender, "That user is not my friend :steamsad:");
                                 }
                             }
                             else
                             {
-                                steamBot.SendChatMessage(callback.Sender, "That's not a valid SteamID :/");
+                                steamBot.SendChatMessage(Sender, "That's not a valid SteamID :/");
                             }
                         }
                         else
                         {
-                            steamBot.SendChatMessage(callback.Sender, "Yeah, but WHAT should I say?");
+                            steamBot.SendChatMessage(Sender, "Yeah, but WHAT should I say?");
                         }
                     }
                     else
                     {
-                        steamBot.SendChatMessage(callback.Sender, "I DON'T WANNA :steammocking:");
+                        steamBot.SendChatMessage(Sender, "I DON'T WANNA :steammocking:");
                     }
                 }
                 #endregion
                 #region dance
                 else if (lowerMessage.Equals("dance"))
                 {
-                    steamBot.SendChatMessage(callback.Sender, "TIME TO DAAAAAANCE\n<('.'<) (>'.')> (^'.')> <('.'^)\nhttps://www.youtube.com/watch?v=m6flHkC7oGs");
+                    steamBot.SendChatMessage(Sender, "TIME TO DAAAAAANCE\n<('.'<) (>'.')> (^'.')> <('.'^)\nhttps://www.youtube.com/watch?v=m6flHkC7oGs");
                 }
                 #endregion
                 #region usage
                 else if (new String[] { "help", "halp", "usage", "--help", "/?", "wtf" }.Contains(lowerMessage))
                 {
-                    steamBot.SendChatMessage(callback.Sender, usage);
+                    steamBot.SendChatMessage(Sender, usage);
                 }                
                 else
                 {
-                    steamBot.SendChatMessage(callback.Sender, callback.Message + " to you too!");
-                    steamBot.SendChatMessage(callback.Sender, "Did you mean 'help'?");
-                    //steamBot.SendChatMessage(callback.Sender, usage);
+                    steamBot.SendChatMessage(Sender, Message + " to you too!");
+                    steamBot.SendChatMessage(Sender, "Did you mean 'help'?");
+                    //steamBot.SendChatMessage(Sender, usage);
                 }
                 #endregion
 
-                //Console.WriteLine(callback.Sender.Render() + ": " + callback.Message);
-                Console.WriteLine(steamBot.SteamIdToName(callback.Sender) + ": " + callback.Message);
+                //Console.WriteLine(Sender.Render() + ": " + callback.Message);
+                Console.WriteLine(steamBot.SteamIdToName(Sender) + ": " + Message);
 
             }
         }
@@ -393,9 +416,5 @@ namespace Twitch2Steam
             twitchBot.Exit();
             steamBot.Exit();
         }
-
-
-        
-
     }
 }

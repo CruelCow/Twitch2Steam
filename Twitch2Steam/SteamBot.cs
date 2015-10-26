@@ -4,14 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SteamKit2;
+using SteamKit2.Internal;
 
 namespace Twitch2Steam
 {
     public delegate void FriendMessageEventHandler (SteamFriends.FriendMsgCallback callback);
+    public delegate void OfflineMessageEventHandler(SteamID user, List<CMsgClientFSGetFriendMessageHistoryResponse.FriendMessage> messages);
+    
     //public delegate void FriendAcceptedEventHandler(SteamFriends.FriendsListCallback.Friend friend);
 
     public class SteamBot : IDisposable
-    {
+    {     
         private readonly SteamClient steamClient;
         private readonly CallbackManager manager;
 
@@ -22,6 +25,7 @@ namespace Twitch2Steam
 
         public event FriendMessageEventHandler OnFriendMessage;
         //public event FriendAcceptedEventHandler OnFriendAccepted;
+        public event OfflineMessageEventHandler OnOfflineMessage;
 
         public SteamBot()
         {
@@ -35,6 +39,10 @@ namespace Twitch2Steam
             // get the steam friends handler, which is used for interacting with friends on the network after logging on
             steamFriends = steamClient.GetHandler<SteamFriends>();
 
+            var ch = new CustomHandler();
+            ch.OnOfflineMessage += ch_OnOfflineMessage;
+            steamClient.AddHandler(ch);
+
             // register a few callbacks we're interested in
             // these are registered upon creation to a callback manager, which will then route the callbacks
             // to the functions specified
@@ -43,6 +51,7 @@ namespace Twitch2Steam
 
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
+            //manager.Subscribe<SteamUser.MarketingMessageCallback>(OnMarketing);
 
             // we use the following callbacks for friends related activities
             manager.Subscribe<SteamUser.AccountInfoCallback>(OnAccountInfo);
@@ -50,6 +59,8 @@ namespace Twitch2Steam
             manager.Subscribe<SteamFriends.PersonaStateCallback>(OnPersonaState);
             manager.Subscribe<SteamFriends.FriendAddedCallback>(OnFriendAdded);
             manager.Subscribe<SteamFriends.FriendMsgCallback>(OnFriendMsg);
+            manager.Subscribe<SteamFriends.FriendMsgEchoCallback>(EchoMsg);
+            
 
             isRunning = true;
 
@@ -57,6 +68,18 @@ namespace Twitch2Steam
 
             // initiate the connection
             steamClient.Connect();
+        }
+
+        private void ch_OnOfflineMessage(CMsgClientFSGetFriendMessageHistoryResponse messages)
+        {
+            if (OnOfflineMessage != null)
+                OnOfflineMessage.Invoke(messages.steamid, messages.messages);
+        }
+
+        private void EchoMsg(SteamFriends.FriendMsgEchoCallback obj)
+        {
+            Console.WriteLine("******ECHO: " + obj);
+
         }
 
         public void loop()
@@ -99,6 +122,8 @@ namespace Twitch2Steam
 
         private void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
+            Console.WriteLine("Flags: " + callback.AccountFlags);;
+                        
             if (callback.Result != EResult.OK)
             {
                 if (callback.Result == EResult.AccountLogonDenied)
@@ -119,6 +144,10 @@ namespace Twitch2Steam
             }
 
             Console.WriteLine("Successfully logged on!");
+
+            //Request offline messages. CustomHandler actually handles the messages
+            var x = new ClientMsgProtobuf<CMsgClientFSGetFriendMessageHistoryForOfflineMessages>(EMsg.ClientFSGetFriendMessageHistoryForOfflineMessages);
+            steamClient.Send(x);
         }
 
         private void OnAccountInfo(SteamUser.AccountInfoCallback callback)
@@ -167,10 +196,6 @@ namespace Twitch2Steam
                     steamFriends.AddFriend(friend.SteamID);
                     SendChatMessage(friend.SteamID, "HI THERE!");
                     SendChatMessage(friend.SteamID, "Say 'help' for a list of commands");
-                    /*if (OnFriendAccepted != null)
-                    {
-                        OnFriendAccepted.Invoke(friend);
-                    }*/
                 }
             }
         }
@@ -210,5 +235,4 @@ namespace Twitch2Steam
             return steamFriends.GetFriendPersonaName(id) + " [" + id.Render() + "]";
         }
     }
-
 }
