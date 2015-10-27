@@ -112,12 +112,17 @@ namespace Twitch2Steam
 
         private void OnDisconnected(SteamClient.DisconnectedCallback callback)
         {
-            Console.WriteLine("Disconnected from Steam");
+            if (callback.UserInitiated)
+            {
+                Console.WriteLine("Disconnected from Steam");
+            }
+            else
+            {
+                Console.WriteLine("Lost connection from Steam, trying to reconnect...");
 
-            //isRunning = false;
-
-            if (isRunning)
+                //isRunning = false;
                 steamClient.Connect();
+            }
         }
 
         private void OnLoggedOn(SteamUser.LoggedOnCallback callback)
@@ -225,7 +230,7 @@ namespace Twitch2Steam
             steamClient.Disconnect();
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             Exit();
         }

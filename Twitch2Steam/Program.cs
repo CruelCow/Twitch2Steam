@@ -19,8 +19,6 @@ namespace Twitch2Steam
 
                 steamBot.loop();
             }
-            //tb.Exit();
-            //sb.Exit();
         }
     }
 }

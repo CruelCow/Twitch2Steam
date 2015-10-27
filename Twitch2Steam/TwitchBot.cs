@@ -15,31 +15,14 @@ namespace Twitch2Steam
 
         public TwitchBot()
         {        
-            //messageHandler += delegate(String channel, String user, String message) { Console.WriteLine(user + ": " + message); };
-
-            //string server = "irc.twitch.tv";
-            //string nick = "YourTwitchNameHere";
-            //string pw = "oauth:YourOauthKeyHere";
-
-            //ConnectionArgs cargs = new ConnectionArgs(nick, server);
-            //cargs.ServerPassword = pw;
-            //cargs.Port = 6697; //SSL
-
-
             ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, Settings.Default.IrcServer);
             cargs.Port = Settings.Default.Port;
-            cargs.ServerPassword = Settings.Default.IrcPassword;            
-
-
-            //When creating a Connection two additional protocols may be
-            //enabled: CTCP and DCC. In this example we will disable them
-            //both.
+            cargs.ServerPassword = Settings.Default.IrcPassword;
+            
             connection = new Connection(cargs, false, false);		
 
             connection.Listener.OnRegistered += new RegisteredEventHandler(OnRegistered);
 
-            //Listen for any messages sent to the channel
-            //connection.Listener.OnPublic += new PublicMessageEventHandler(OnPublic);
             connection.Listener.OnPublic += delegate(UserInfo user, string channel, string message) 
                 { 
                     if(OnPublicMessage != null)
@@ -128,7 +111,7 @@ namespace Twitch2Steam
         public void OnPrivate(UserInfo user, string message)
         {
             Console.WriteLine(user.Nick + " whispered to me: " + message);
-            //Quit IRC if someone sends us a 'die' message
+            //Quit IRC if master sends us a 'die' message
             if (message == "die" && user.Nick.ToLower().Equals("cruelcow"))
             {
                 connection.Disconnect("Bye");
