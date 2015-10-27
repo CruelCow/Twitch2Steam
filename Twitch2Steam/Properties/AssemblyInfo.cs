@@ -2,11 +2,13 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+[assembly: log4net.Config.XmlConfigurator(Watch = true)] //activate log4net
+
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Twitch2Steam")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Because the world needs more Twitch chat")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Twitch2Steam")]

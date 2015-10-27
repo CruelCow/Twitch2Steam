@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using SteamKit2;
 using SteamKit2.Internal;
+using log4net;
 
 namespace Twitch2Steam
 {
@@ -14,7 +12,9 @@ namespace Twitch2Steam
     //public delegate void FriendAcceptedEventHandler(SteamFriends.FriendsListCallback.Friend friend);
 
     public class SteamBot : IDisposable
-    {     
+    {
+        private readonly ILog log = LogManager.GetLogger(typeof(SteamBot));
+
         private readonly SteamClient steamClient;
         private readonly CallbackManager manager;
 
@@ -39,9 +39,7 @@ namespace Twitch2Steam
             // get the steam friends handler, which is used for interacting with friends on the network after logging on
             steamFriends = steamClient.GetHandler<SteamFriends>();
 
-            var ch = new CustomHandler();
-            ch.OnOfflineMessage += ch_OnOfflineMessage;
-            steamClient.AddHandler(ch);
+            steamClient.AddHandler(new CustomHandler());
 
             // register a few callbacks we're interested in
             // these are registered upon creation to a callback manager, which will then route the callbacks
@@ -60,14 +58,21 @@ namespace Twitch2Steam
             manager.Subscribe<SteamFriends.FriendAddedCallback>(OnFriendAdded);
             manager.Subscribe<SteamFriends.FriendMsgCallback>(OnFriendMsg);
             manager.Subscribe<SteamFriends.FriendMsgEchoCallback>(EchoMsg);
+            manager.Subscribe<SteamFriends.CMsgClientFSGetFriendMessageHistoryResponseCallback>(ch_OnOfflineMessage2);
             
 
             isRunning = true;
 
-            Console.WriteLine("Connecting to Steam...");
+            log.Info("Connecting...");
 
             // initiate the connection
             steamClient.Connect();
+        }
+        
+        private void ch_OnOfflineMessage2(SteamFriends.CMsgClientFSGetFriendMessageHistoryResponseCallback messages)
+        {
+            if (OnOfflineMessage != null)
+                OnOfflineMessage.Invoke(messages.SteamID, messages.Messages);
         }
 
         private void ch_OnOfflineMessage(CMsgClientFSGetFriendMessageHistoryResponse messages)
@@ -78,8 +83,7 @@ namespace Twitch2Steam
 
         private void EchoMsg(SteamFriends.FriendMsgEchoCallback obj)
         {
-            Console.WriteLine("******ECHO: " + obj);
-
+            log.Info("******ECHO: " + obj);
         }
 
         public void loop()
@@ -95,13 +99,13 @@ namespace Twitch2Steam
         {
             if (callback.Result != EResult.OK)
             {
-                Console.WriteLine("Unable to connect to Steam: {0}", callback.Result);
+                log.Fatal("Unable to connect to Steam: " + callback.Result);
 
-                isRunning = false;
+                isRunning = false; //TODO remove?
                 return;
             }
 
-            Console.WriteLine("Connected to Steam! Logging in '{0}'...", Settings.Default.SteamName);
+            log.Info("Connected to Steam! Logging in as {Settings.Default.SteamName}'");
 
             steamUser.LogOn(new SteamUser.LogOnDetails
             {
@@ -114,11 +118,11 @@ namespace Twitch2Steam
         {
             if (callback.UserInitiated)
             {
-                Console.WriteLine("Disconnected from Steam");
+                log.Info("Disconnected from Steam");
             }
             else
             {
-                Console.WriteLine("Lost connection from Steam, trying to reconnect...");
+                log.Warn("Lost connection from Steam, trying to reconnect...");
 
                 //isRunning = false;
                 steamClient.Connect();
@@ -127,7 +131,7 @@ namespace Twitch2Steam
 
         private void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
-            Console.WriteLine("Flags: " + callback.AccountFlags);;
+            log.Info("Flags: " + callback.AccountFlags);;
                         
             if (callback.Result != EResult.OK)
             {
@@ -137,27 +141,28 @@ namespace Twitch2Steam
                     // then the account we're logging into is SteamGuard protected
                     // see sample 5 for how SteamGuard can be handled
 
-                    Console.WriteLine("Unable to logon to Steam: This account is SteamGuard protected.");
+                    log.Fatal("Unable to logon to Steam: This account is SteamGuard protected.");
                 }
                 else
                 {
-                    Console.WriteLine("Unable to logon to Steam: {0} / {1}", callback.Result, callback.ExtendedResult);
+                    log.Fatal($"Unable to logon to Steam: {callback.Result} / {callback.ExtendedResult}");
                 }
 
                 isRunning = false;
                 return;
             }
 
-            Console.WriteLine("Successfully logged on!");
+            log.Info("Successfully logged on!");
 
             //Request offline messages. CustomHandler actually handles the messages
-            var x = new ClientMsgProtobuf<CMsgClientFSGetFriendMessageHistoryForOfflineMessages>(EMsg.ClientFSGetFriendMessageHistoryForOfflineMessages);
-            steamClient.Send(x);
+            //var x = new ClientMsgProtobuf<CMsgClientFSGetFriendMessageHistoryForOfflineMessages>(EMsg.ClientFSGetFriendMessageHistoryForOfflineMessages);
+            //steamClient.Send(x);
+            steamFriends.RequestOfflineMessages();
         }
 
         private void OnAccountInfo(SteamUser.AccountInfoCallback callback)
         {
-            Console.WriteLine("Going online...");
+            log.Info("Going online...");
             // at this point, we can go online on friends, so lets do that
             steamFriends.SetPersonaState(EPersonaState.Online);
         }
@@ -208,20 +213,18 @@ namespace Twitch2Steam
         private void OnFriendAdded(SteamFriends.FriendAddedCallback callback)
         {
             // someone accepted our friend request, or we accepted one
-            Console.WriteLine("{0} is now a friend", SteamIdToName(callback.SteamID));
+            log.Debug($"{SteamIdToName(callback.SteamID)} is now a friend");
         }
 
         private void OnPersonaState(SteamFriends.PersonaStateCallback callback)
         {
             // this callback is received when the persona state (friend information) of a friend changes
-
-            // for this sample we'll simply display the names of the friends
-            Console.WriteLine("State change: {0} is now {1}", callback.Name, callback.State);
+            log.Debug($"State change: {callback.Name} is now {callback.State}");
         }
 
         private void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
-            Console.WriteLine("Logged off of Steam: {0}", callback.Result);
+            log.Warn("Logged off of Steam: " + callback.Result);
         }
 
         public void Exit()

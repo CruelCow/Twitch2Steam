@@ -12,38 +12,15 @@ namespace Twitch2Steam
 {
     
     /// <summary>
-    /// This class handles Messages for which SteamKit2 doesn't offer a 'nice' interface.
-    /// Spefically, it handles offline messages. Note that SteamBot.cs triggers those 
-    /// messages to be sent in OnLoggedOn.
+    /// This class marks "expected" messages and prints about others. This can be useful for debugging.
     /// </summary>
     public class CustomHandler : ClientMsgHandler
     {
-        public delegate void OfflineMessageEventHandler(CMsgClientFSGetFriendMessageHistoryResponse messages);
-        public event OfflineMessageEventHandler OnOfflineMessage;
-
         public override void HandleMsg(IPacketMsg packetMsg)
         {
-            // this function is called when a message arrives from the Steam network
-            // the SteamClient class will pass the message along to every registered ClientMsgHandler
-
-            // the MsgType exposes the EMsg (type) of the message
-
             switch (packetMsg.MsgType)
             {
-                case EMsg.ClientFSGetFriendMessageHistoryResponse:
-                    var data = new ClientMsgProtobuf<CMsgClientFSGetFriendMessageHistoryResponse>(packetMsg).Body;
-                    if (OnOfflineMessage != null)
-                        OnOfflineMessage.Invoke(data);
-                    foreach (var elem in data.messages)
-                    {
-                        if (elem.unread)
-                        {
-                            Console.WriteLine("I MISSED a message from " + elem.accountid + ": " + elem.message);
-                        }
-                    }
-                    break;
-        
-                    //Packets which are neither unexpected nor handled in this class
+                //Packets which are neither unexpected nor handled in this class
                 case EMsg.ChannelEncryptRequest:
                 case EMsg.ChannelEncryptResult:
                 case EMsg.ClientServersAvailable:
@@ -69,6 +46,7 @@ namespace Twitch2Steam
                 case EMsg.ClientNewLoginKey:
                 case EMsg.ClientFriendMsgIncoming:
                 case EMsg.ClientFSOfflineMessageNotification:
+                case EMsg.ClientFSGetFriendMessageHistoryResponse:
                     break;                
 
                 case EMsg.ClientMarketingMessageUpdate2:
