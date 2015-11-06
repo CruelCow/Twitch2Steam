@@ -204,8 +204,6 @@ namespace Twitch2Steam
                 {
                     // this user has added us, let's add him back
                     steamFriends.AddFriend(friend.SteamID);
-                    SendChatMessage(friend.SteamID, "HI THERE!");
-                    SendChatMessage(friend.SteamID, "Say 'help' for a list of commands");
                 }
             }
         }
@@ -214,6 +212,8 @@ namespace Twitch2Steam
         {
             // someone accepted our friend request, or we accepted one
             log.Debug($"{SteamIdToName(callback.SteamID)} is now a friend");
+            SendChatMessage(callback.SteamID, $"HI THERE {callback.PersonaName.ToUpper()}!");
+            SendChatMessage(callback.SteamID, "Say 'help' for a list of commands");
         }
 
         private void OnPersonaState(SteamFriends.PersonaStateCallback callback)
