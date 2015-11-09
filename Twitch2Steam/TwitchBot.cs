@@ -3,8 +3,6 @@ using Sharkbite.Irc;
 using log4net;
 using System.Timers;
 using System.Net.Sockets;
-using System.Collections.Generic;
-using System.Net;
 
 namespace Twitch2Steam
 {
@@ -14,9 +12,6 @@ namespace Twitch2Steam
         private readonly Timer heartbeatMonitor;
         private readonly Timer reconnectTimer;
         private readonly ExponentialBackoff reconnectBackoff;
-
-        private readonly ISet<String> channelList;
-
         private readonly ILog log = LogManager.GetLogger(typeof(TwitchBot));
 
         private readonly Random random = new Random();
@@ -25,51 +20,25 @@ namespace Twitch2Steam
 
         public TwitchBot()
         {
-            channelList = new HashSet<String>();
             var twitchServer = TwitchHelper.getRandomGroupChatServer();
-            
-            heartbeatMonitor = new Timer(TimeSpan.FromSeconds(60).TotalMilliseconds);
-            heartbeatMonitor.AutoReset = true;
-            heartbeatMonitor.Elapsed += HeartbeatMonitor_Elapsed;
-            heartbeatMonitor.Start();
-            
-            reconnectTimer = new Timer();
-            reconnectTimer.AutoReset = false;
-            reconnectTimer.Elapsed += ReconnectTimer_Elapsed;
 
-            reconnectBackoff = new ExponentialBackoff();
-
-            Init_Connection(twitchServer);
-
-            try
-            {
-                connection.Connect();
-            }
-            catch (Exception ex) when (ex is ArgumentException || ex is SocketException)
-            {
-                OnDisconnected();
-            }
-        }
-
-        private void Init_Connection(IPEndPoint twitchServer)
-        {
             ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, twitchServer.Address.ToString())
             {
                 Port = twitchServer.Port,
                 ServerPassword = Settings.Default.IrcPassword
             };
-
+            
             log.Info($"Trying to connect to {cargs.Hostname} on Port {cargs.Port} as {Settings.Default.IrcName}");
 
             connection = new Connection(cargs, false, false);
 
             connection.Listener.OnRegistered += new RegisteredEventHandler(OnRegistered);
 
-            connection.Listener.OnPublic += delegate ( UserInfo user, string channel, string message )
-            {
-                if (OnPublicMessage != null)
-                    OnPublicMessage.Invoke(user, channel, message);
-            };
+            connection.Listener.OnPublic += delegate (UserInfo user, string channel, string message)
+                {
+                    if (OnPublicMessage != null)
+                        OnPublicMessage.Invoke(user, channel, message);
+                };
 
             //Listen for bot commands sent as private messages
             connection.Listener.OnPrivate += new PrivateMessageEventHandler(OnPrivate);
@@ -80,47 +49,49 @@ namespace Twitch2Steam
             //Listen for notification that we are no longer connected.
             connection.Listener.OnDisconnected += new DisconnectedEventHandler(OnDisconnected);
             connection.Listener.OnDisconnecting += new DisconnectingEventHandler(OnDisconnecting);
-
+            
             connection.Listener.OnPing += new PingEventHandler(OnPing);
             connection.Listener.OnJoin += new JoinEventHandler(onJoin);
             connection.Listener.OnPart += new PartEventHandler(OnPart);
             connection.Listener.OnQuit += new QuitEventHandler(OnQuit);
             connection.Listener.OnInfo += new InfoEventHandler(OnInfo);
 
-            //Join("#" + cargs.UserName.ToLower());
-        }
+            Join("#" + cargs.UserName.ToLower());
+
+            heartbeatMonitor = new Timer(TimeSpan.FromSeconds(60).TotalMilliseconds);
+            heartbeatMonitor.AutoReset = true;
+            heartbeatMonitor.Elapsed += HeartbeatMonitor_Elapsed;
+            heartbeatMonitor.Start();
 
 
-        private void ReconnectTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            if (connection.Connected)
-            {
-                log.Error("Already connected");
-                return;
-            }
+            reconnectTimer = new Timer();
+            reconnectTimer.AutoReset = false;
+            reconnectTimer.Elapsed += ReconnectTimer_Elapsed;
+
+            reconnectBackoff = new ExponentialBackoff();
 
             try
             {
-                if (reconnectBackoff.IsDelayMaxed || connection.ConnectionData.Hostname == IPAddress.None.ToString())
-                {
-                    log.Info("Getting a new server");
-                    var server = TwitchHelper.getRandomGroupChatServer();
-                    Init_Connection(server);
-                    reconnectBackoff.Reset();
-                }
-
-                log.Debug("Trying to reconnect");
-
                 connection.Connect();
-                log.Info("Successfully reconnected");
+            }
+            catch (SocketException)
+            {
+                OnDisconnected();
+            }
+        }
 
-
-                //Ensure we rejoin all our channels
-                log.Debug($"Rejoining {channelList.Count} channels");
-                foreach (var channel in channelList)
+        private void ReconnectTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                log.Debug("Trying to reconnect");
+                if (connection.Connected)
                 {
-                    connection.Sender.Join(channel);
+                    log.Warn("Already connected");
+                    return;
                 }
+                connection.Connect();
+                log.Debug("Successfully reconnected");
 
 
                 //If Enabled and AutoReset are both set to false, and the timer has previously been enabled,
@@ -157,14 +128,12 @@ namespace Twitch2Steam
         {
             log.Info($"Joining {channel}");
             connection.Sender.Join(channel);
-            channelList.Add(channel);
         }
 
         public void Leave(String channel)
         {
             log.Info($"Leaving {channel}");
             connection.Sender.Part(channel);
-            channelList.Remove(channel);
         }
 
         private void onJoin(UserInfo user, string channel)
@@ -212,8 +181,6 @@ namespace Twitch2Steam
             //connection.Sender.PrivateMessage("jtv", "/w cruelcow message2");
             //Either are valid syntax, but only if connected to a "group chat" server
             //Getting group chat server: http://blog.bashtech.net/twitch-group-chat-irc/
-            //"We purposely made whispers convoluted for IRC integration..."
-            //https://discuss.dev.twitch.tv/t/whispers-on-irc/2459/
 
             connection.Sender.PrivateMessage("jtv", $"/w {user} {message}");
         }
