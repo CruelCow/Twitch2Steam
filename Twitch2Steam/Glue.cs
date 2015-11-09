@@ -71,7 +71,7 @@ namespace Twitch2Steam
         {
             lock (myLock)
             {
-                foreach (var target in subscriptionsUsersMap.GetValueOrInsertDefault(channel, typeof(HashSet<String>)))
+                foreach (var target in subscriptionsUsersMap.GetValueOrInsertDefault(channel, typeof(HashSet<SteamID>)))
                 {
                     steamBot.SendChatMessage(target, user.Nick + ": " + message);
                 }
