@@ -20,9 +20,11 @@ namespace Twitch2Steam
 
         public TwitchBot()
         {
-            ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, Settings.Default.IrcServer);
-            cargs.Port = Settings.Default.Port;
-            cargs.ServerPassword = Settings.Default.IrcPassword;
+            ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, Settings.Default.IrcServer)
+            {
+                Port = Settings.Default.Port,
+                ServerPassword = Settings.Default.IrcPassword
+            };
 
             log.Info($"Trying to connect to {cargs.Hostname}:{cargs.Port} as {Settings.Default.IrcName}");
 
@@ -116,7 +118,7 @@ namespace Twitch2Steam
             {
                 //connection.Sender.Names("#" + connection.ConnectionData.Nick.ToLower());
                 //this.SendMessage("#" + connection.ConnectionData.Nick.ToLower(), "heartbeat");
-                connection.Sender.PrivateMessage("connection.ConnectionData.Nick", "heartbeat " + DateTime.Now.ToString("s"));
+                connection.Sender.PrivateMessage(connection.ConnectionData.Nick, "heartbeat " + DateTime.Now.ToString("s"));
             }
         }
 
