@@ -34,6 +34,14 @@ namespace Twitch2Steam
             return InitialDelay;
         }
 
+        public bool IsDelayMaxed
+        {
+            get
+            {
+                return nextDelay >= MaximumDelay.TotalMilliseconds;
+            }
+        }
+
         public TimeSpan NextDelay
         {
             get
