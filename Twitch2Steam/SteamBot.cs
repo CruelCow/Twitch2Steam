@@ -171,7 +171,7 @@ namespace Twitch2Steam
             log.Debug("Flags: " + callback.AccountFlags);
 
             var possibleFlags = Enum.GetValues(typeof(EAccountFlags)).Cast<Enum>();           
-            var expectedFlags = (EAccountFlags.Admin | EAccountFlags.PasswordSet | EAccountFlags.HWIDSet | EAccountFlags.LimitedUser | EAccountFlags.Steam2MigrationComplete);
+            var expectedFlags = (EAccountFlags.PersonaNameSet | EAccountFlags.PasswordSet | EAccountFlags.HWIDSet | EAccountFlags.LimitedUser | EAccountFlags.Steam2MigrationComplete);
             
             foreach (var flag in possibleFlags.Where(flag => callback.AccountFlags.HasFlag(flag) && !expectedFlags.HasFlag(flag)))
             {
