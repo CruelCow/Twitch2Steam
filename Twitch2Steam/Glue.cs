@@ -343,7 +343,7 @@ namespace Twitch2Steam
 
                         if (data.Length == 3)
                         {
-                            if (subscriptionsUsersMap[channel].Contains(sender))
+                            if (subscriptionsUsersMap.GetValueOrInsertDefault(channel).Contains(sender))
                             {
                                 twitchBot.SendMessage(channel, data[2]);
                             }
