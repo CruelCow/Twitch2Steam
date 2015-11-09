@@ -184,6 +184,12 @@ namespace Twitch2Steam
             {
                 log.Error("Unable to send private message", e);
             }
+
+            //Request Join/Part messages etc. 
+            //Supposedly only works in channels with <10 users
+            //Broken atm, might only work with group chat servers
+            //https://github.com/justintv/Twitch-API/blob/master/IRC.md
+            connection.Sender.Raw("CAP REQ :twitch.tv/membership");
         }
 
         public void OnPrivate(UserInfo user, string message)
@@ -193,9 +199,10 @@ namespace Twitch2Steam
 
         public void OnError(ReplyCode code, string message)
         {
-            //All anticipated errors have a numeric code. The custom Thresher ones start at 1000 and
-            //can be found in the ErrorCodes class. All the others are determined by the IRC spec
-            //and can be found in RFC2812Codes.
+            //expected message for requesting membership info
+            //IRC standards? What is that?
+            if (message.Equals("tmi.twitch.tv CAP * ACK :twitch.tv/membership"))
+                return; 
 
             log.Error("An error of type " + code + " due to " + message + " has occurred.");
         }
