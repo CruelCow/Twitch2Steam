@@ -11,10 +11,11 @@ namespace Twitch2Steam
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Starting Bot");
+            LogTester.Test();
             using (var steamBot = new SteamBot())
             using (var twitchBot = new TwitchBot())
             {
+            //    var twitchBot = new TwitchBot2();
                 Glue glue = new Glue(twitchBot, steamBot);
 
                 steamBot.loop();

@@ -4,19 +4,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Configuration;
 using System.Collections.Specialized;
 using SteamKit2.Internal;
+using log4net;
+using System.Threading;
+using System.Diagnostics;
 
 namespace Twitch2Steam
 {
     public class Glue
     {
+        private readonly ILog log = LogManager.GetLogger(typeof(Glue));
+
         private readonly Object myLock; //TODO more fine grained lock?
+
         private readonly TwitchBot twitchBot;
         private readonly SteamBot steamBot;
-        private readonly Dictionary<String, ISet<SteamID>> subscriptionsUsersMap;
+        private readonly Dictionary<String, HashSet<SteamID>> subscriptionsUsersMap;
         private readonly Dictionary<SteamID, ISet<String>> usersSubscriptionsMap;
 
         private readonly ISet<SteamID> adminList;
@@ -26,13 +30,12 @@ namespace Twitch2Steam
             myLock = new Object();
             this.twitchBot = twitchBot;
             this.steamBot = steamBot;
-            subscriptionsUsersMap = new Dictionary<String, ISet<SteamID>>();
+            subscriptionsUsersMap = new Dictionary<String, HashSet<SteamID>>();
             usersSubscriptionsMap = new Dictionary<SteamID, ISet<String>>();
 
             adminList = LoadAdmins();
             
-            twitchBot.OnPublicMessage += delegate(UserInfo user, String channel, String message) { Console.WriteLine(user.Nick + ": " + message); };
-            //twitchBot.OnPublicMessage += delegate(UserInfo user, String channel, String message) { steamBot.Broadcast(user.Nick + ": " + message); };
+            twitchBot.OnPublicMessage += delegate(UserInfo user, String channel, String message) { log.Debug($"{user.Nick}: {message}"); };
             twitchBot.OnPublicMessage += OnTwitchPublicMessage;
             steamBot.OnFriendMessage += OnSteamFriendMessage;
             steamBot.OnOfflineMessage += steamBot_OnOfflineMessage;
@@ -40,14 +43,16 @@ namespace Twitch2Steam
 
         private ISet<SteamID> LoadAdmins()
         {
+            var adminLog = new StringBuilder();
             var admins = new HashSet<SteamID>();
-            foreach(var admin in Settings.Default.Admins)
+            adminLog.Append($"Loading {Settings.Default.Admins.Count} admin{(admins.Count==1 ? "" : "s")}");
+            foreach (var admin in Settings.Default.Admins)
             {
                 var adminId = new SteamID(admin);
                 admins.Add(adminId);
-                Console.WriteLine("\t" + steamBot.SteamIdToName(adminId) + " is an admin");
+                adminLog.Append($"\n\t {steamBot.SteamIdToName(adminId)}");
             }
-            Console.WriteLine("{0} admin(s) loaded", admins.Count);
+            log.Info(adminLog.ToString());
             return admins;
         }
 
@@ -66,12 +71,7 @@ namespace Twitch2Steam
         {
             lock (myLock)
             {
-                ISet<SteamID> users;
-                subscriptionsUsersMap.TryGetValue(channel, out users);
-                if (users == null)
-                    return;
-
-                foreach (var target in users)
+                foreach (var target in subscriptionsUsersMap.GetValueOrInsertDefault(channel, typeof(HashSet<String>)))
                 {
                     steamBot.SendChatMessage(target, user.Nick + ": " + message);
                 }
@@ -80,6 +80,7 @@ namespace Twitch2Steam
         
         private void steamBot_OnOfflineMessage(SteamID user, List<CMsgClientFSGetFriendMessageHistoryResponse.FriendMessage> messages)
         {
+            log.Debug($"{messages.Count} messages from {user}");
             foreach (var message in messages)
             {
                 if(message.unread)
@@ -98,8 +99,13 @@ namespace Twitch2Steam
                     handleCommand(callback.Sender, callback.Message);
                     break;
 
+                case EChatEntryType.InviteGame:
+                    //steamBot.SendChatMessage(callback.Sender, "All work and no play for me :steamsad:");
+                    
+                    break;
+
                 default:
-                    Console.WriteLine("->Unusual chat message of type {0},  from {1} with content '{2}'.", callback.EntryType, steamBot.SteamIdToName(callback.Sender), callback.Message);
+                    log.WarnFormat("Unusual chat message of type {0},  from {1} with content '{2}'.", callback.EntryType, steamBot.SteamIdToName(callback.Sender), callback.Message);
                     break;
             }
         }
@@ -117,12 +123,14 @@ namespace Twitch2Steam
                     if (adminList.Contains(sender))
                     {
                         steamBot.SendChatMessage(sender, "FINALLY! :steamhappy: *explodes*");
-                        System.Threading.Thread.Sleep(1000); //TODO FIX UGLY AF
+                        log.Info($"Shutting down per request of {steamBot.SteamIdToName(sender)}");
+                        System.Threading.Thread.Sleep(1000); //TODO FIX UGLY AF                        
                         Exit();
                     }
                     else
                     {
                         steamBot.SendChatMessage(sender, "You are not my master! >:( I will tell on you.");
+                        log.Warn($"Shutdown command by non-admin user {steamBot.SteamIdToName(sender)}");
                         foreach (var admin in adminList)
                             steamBot.SendChatMessage(admin, steamBot.SteamIdToName(sender) + " tried to kill me D:");
                     }
@@ -157,7 +165,7 @@ namespace Twitch2Steam
                     }
                     else
                     {
-                        steamBot.SendChatMessage(sender, "You don't get to tell me stuff!");
+                        steamBot.SendChatMessage(sender, "You don't get to tell me stuff! :steammocking:");
                     }
                 }
                 #endregion
@@ -178,22 +186,21 @@ namespace Twitch2Steam
                             }
                             else
                             {
+                                log.Info($"{steamBot.SteamIdToName(sender)} made {steamBot.SteamIdToName(newAdminId)} admin.");
+                                foreach (var admin in adminList)
+                                    steamBot.SendChatMessage(sender, $"{steamBot.SteamIdToName(sender)} made {steamBot.SteamIdToName(newAdminId)} admin.");
+                                steamBot.SendChatMessage(newAdminId, "You're my master now! Weeee! :steamhappy:");
                                 adminList.Add(newAdminId);
                                 writeAdmins();
-                                Console.WriteLine("***ADMIN ADDED***");
-                                steamBot.SendChatMessage(sender, steamBot.SteamIdToName(newAdminId) + " is now admin.");
-                                steamBot.SendChatMessage(newAdminId, "You're my master now! Weeee! :steamhappy:");
                             }
                         }
                         else
                         {
-                            Console.WriteLine("\tSteamID is invalid");
                             steamBot.SendChatMessage(sender, "Invalid SteamID");
                         }
                     }
                     else
                     {
-                        Console.WriteLine("***DENIED***");
                         steamBot.SendChatMessage(sender, "Nice Try! :steamfacepalm:");
                     }
                 }
@@ -202,10 +209,9 @@ namespace Twitch2Steam
                 else if (lowerMessage.Equals("list"))
                 {
                     String channels = "";
-                    foreach (var key in subscriptionsUsersMap.Keys)
+                    foreach (var channel in usersSubscriptionsMap.GetValueOrInsertDefault(sender, typeof(HashSet<String>)))
                     {
-                        if (subscriptionsUsersMap[key].Contains(sender))
-                            channels += key + " ";
+                        channels += channel + " ";
                     }
 
                     if (channels == "")
@@ -219,21 +225,24 @@ namespace Twitch2Steam
                 #region shut up
                 else if (lowerMessage.Equals("shut up"))
                 {
-                    int removeCount = 0;
+                    int removeCount = usersSubscriptionsMap.GetValueOrInsertDefault(sender, typeof(HashSet<String>)).Count;
                     var toPart = new HashSet<String>();
-                    foreach (var key in subscriptionsUsersMap.Keys)
+                    foreach (var channel in usersSubscriptionsMap[sender])
                     {
-                        var subs = subscriptionsUsersMap[key];
-                        if (subs.Remove(sender))
-                            removeCount++;
-                        if (subs.Count == 0)
-                            toPart.Add(key);
+                        var subscribers = subscriptionsUsersMap[channel];
+                        Debug.Assert(subscribers.Contains(sender));
+                        subscribers.Remove(sender);
+
+                        if (subscribers.Count == 0)
+                            toPart.Add(channel);
                     }
 
-                    foreach (var key in toPart)
+                    usersSubscriptionsMap.Remove(sender);
+
+                    foreach (var channel in toPart)
                     {
-                        subscriptionsUsersMap.Remove(key);
-                        twitchBot.Leave(key);
+                        subscriptionsUsersMap.Remove(channel);
+                        twitchBot.Leave(channel);
                     }
 
                     steamBot.SendChatMessage(sender, String.Format("Removed you from {0} channel(s)", removeCount));
@@ -246,17 +255,17 @@ namespace Twitch2Steam
                     if (!channel.StartsWith("#"))
                         channel = '#' + channel;
 
-                    ISet<SteamID> channelSubs;
-                    subscriptionsUsersMap.TryGetValue(channel, out channelSubs);
-                    if (channelSubs == null)
+                    var channelSubs = subscriptionsUsersMap.GetValueOrInsertDefault(channel);
+                    if (channelSubs.Count == 0)
                     {
-                        channelSubs = new HashSet<SteamID>();
-                        subscriptionsUsersMap.Add(channel, channelSubs);
                         twitchBot.Join(channel);
                     }
 
                     if (channelSubs.Add(sender))
                     {
+                        var subscriptions = usersSubscriptionsMap.GetValueOrInsertDefault(sender, typeof(HashSet<String>));
+
+                        subscriptions.Add(channel);
                         steamBot.SendChatMessage(sender, "You are now subscribed to " + channel);
                     }
                     else
@@ -272,12 +281,20 @@ namespace Twitch2Steam
                     if (!channel.StartsWith("#"))
                         channel = '#' + channel;
 
-                    ISet<SteamID> channelSubs;
-                    subscriptionsUsersMap.TryGetValue(channel, out channelSubs);
-                    
-                    if (channelSubs != null && channelSubs.Remove(sender))
+                    var channelSubs = subscriptionsUsersMap.GetValueOrInsertDefault(channel);
+
+                    if (channelSubs.Remove(sender))
                     {
+                        Debug.Assert(usersSubscriptionsMap[sender].Contains(channel));
+                        usersSubscriptionsMap[sender].Remove(channel);
+
                         steamBot.SendChatMessage(sender, "OK, you are not subscribed to " + channel + " anymore");
+
+                        if(usersSubscriptionsMap[sender].Count == 0)
+                        {
+                            usersSubscriptionsMap.Remove(sender);
+                        }
+
                         if (channelSubs.Count == 0)
                         {
                             subscriptionsUsersMap.Remove(channel);
@@ -307,15 +324,15 @@ namespace Twitch2Steam
                             adminMessage += "a master";
                         }
                     }
-                    
+
                     adminMessage += "\n" + adminList.Count + " master(s) total";
 
                     steamBot.SendChatMessage(sender, adminMessage);
                 }
                 #endregion
                 #region say
-                else if(lowerMessage.StartsWith("say "))
-                {                    
+                else if (lowerMessage.StartsWith("say "))
+                {
                     if (adminList.Contains(sender))
                     {
                         String[] data = message.Split(new char[] { ' ' }, 3);
@@ -326,8 +343,7 @@ namespace Twitch2Steam
 
                         if (data.Length == 3)
                         {
-
-                            if (subscriptionsUsersMap.Keys.Contains(channel) && subscriptionsUsersMap[channel].Contains(sender))
+                            if (subscriptionsUsersMap[channel].Contains(sender))
                             {
                                 twitchBot.SendMessage(channel, data[2]);
                             }
@@ -371,7 +387,7 @@ namespace Twitch2Steam
                             }
                             else
                             {
-                                steamBot.SendChatMessage(sender, "That's not a valid SteamID :/");
+                                steamBot.SendChatMessage(sender, "That's not a valid SteamID :steamfacepalm:");
                             }
                         }
                         else
@@ -395,7 +411,7 @@ namespace Twitch2Steam
                 else if (new String[] { "help", "halp", "usage", "--help", "/?", "wtf" }.Contains(lowerMessage))
                 {
                     steamBot.SendChatMessage(sender, usage);
-                }                
+                }
                 else
                 {
                     steamBot.SendChatMessage(sender, message + " to you too!");
@@ -404,9 +420,11 @@ namespace Twitch2Steam
                 }
                 #endregion
 
-                //Console.WriteLine(Sender.Render() + ": " + callback.Message);
-                Console.WriteLine(steamBot.SteamIdToName(sender) + ": " + message);
-
+                log.Debug(steamBot.SteamIdToName(sender) + ": " + message);
+                
+                //Ensure that each map has the same data.
+                Debug.Assert(subscriptionsUsersMap.All(key => key.Value.All(value => usersSubscriptionsMap[value].Contains(key.Key))));
+                Debug.Assert(usersSubscriptionsMap.All(key => key.Value.All(value => subscriptionsUsersMap[value].Contains(key.Key))));
             }
         }
 

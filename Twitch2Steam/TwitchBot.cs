@@ -1,18 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-//using Twitch2Steam.Properties;
 using Sharkbite.Irc;
 using log4net;
+using System.Timers;
+using System.Net.Sockets;
 
 namespace Twitch2Steam
 {
     public class TwitchBot : IDisposable
     {
         private Connection connection;
+        private readonly Timer heartbeatMonitor;
+        private readonly Timer reconnectTimer;
+        private readonly ExponentialBackoff reconnectBackoff;
         private readonly ILog log = LogManager.GetLogger(typeof(TwitchBot));
+
+        private readonly Random random = new Random();
 
         public event PublicMessageEventHandler OnPublicMessage;
 
@@ -24,14 +26,14 @@ namespace Twitch2Steam
 
             log.Info($"Trying to connect to {cargs.Hostname}:{cargs.Port} as {Settings.Default.IrcName}");
 
-            connection = new Connection(cargs, false, false);		
+            connection = new Connection(cargs, false, false);
 
             connection.Listener.OnRegistered += new RegisteredEventHandler(OnRegistered);
 
-            connection.Listener.OnPublic += delegate(UserInfo user, string channel, string message) 
-                { 
-                    if(OnPublicMessage != null)
-                        OnPublicMessage.Invoke(user, channel, message); 
+            connection.Listener.OnPublic += delegate (UserInfo user, string channel, string message)
+                {
+                    if (OnPublicMessage != null)
+                        OnPublicMessage.Invoke(user, channel, message);
                 };
 
             //Listen for bot commands sent as private messages
@@ -42,15 +44,80 @@ namespace Twitch2Steam
 
             //Listen for notification that we are no longer connected.
             connection.Listener.OnDisconnected += new DisconnectedEventHandler(OnDisconnected);
-
+            connection.Listener.OnDisconnecting += new DisconnectingEventHandler(OnDisconnecting);
+            
             connection.Listener.OnPing += new PingEventHandler(OnPing);
             connection.Listener.OnJoin += new JoinEventHandler(onJoin);
             connection.Listener.OnPart += new PartEventHandler(OnPart);
             connection.Listener.OnQuit += new QuitEventHandler(OnQuit);
+            connection.Listener.OnInfo += new InfoEventHandler(OnInfo);
 
-            //connection.Listener.OnInfo += new OnInfoEventHandler( Listener_OnInfo);
+            Join("#" + cargs.UserName.ToLower());
 
-            connection.Connect();
+            heartbeatMonitor = new Timer(TimeSpan.FromSeconds(60).TotalMilliseconds);
+            heartbeatMonitor.AutoReset = true;
+            heartbeatMonitor.Elapsed += HeartbeatMonitor_Elapsed;
+            heartbeatMonitor.Start();
+
+
+            reconnectTimer = new Timer();
+            reconnectTimer.AutoReset = false;
+            reconnectTimer.Elapsed += ReconnectTimer_Elapsed;
+
+            reconnectBackoff = new ExponentialBackoff();
+
+            try
+            {
+                connection.Connect();
+            }
+            catch (SocketException)
+            {
+                OnDisconnected();
+            }
+        }
+
+        private void ReconnectTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                log.Debug("Trying to reconnect");
+                if (connection.Connected)
+                {
+                    log.Warn("Already connected");
+                    return;
+                }
+                connection.Connect();
+                log.Debug("Successfully reconnected");
+
+
+                //If Enabled and AutoReset are both set to false, and the timer has previously been enabled,
+                //setting the Interval property causes the Elapsed event to be raised once, as if the Enabled 
+                //property had been set to true. To set the interval without raising the event, you can 
+                //temporarily set the Enabled property to true, set the Interval property to the desired time 
+                //interval, and then immediately set the Enabled property back to false.
+                // -- https://msdn.microsoft.com/en-us/library/system.timers.timer.interval%28v=vs.110%29.aspx
+
+                reconnectTimer.Enabled = true;
+                reconnectTimer.Interval = reconnectBackoff.Reset().TotalMilliseconds;
+                reconnectTimer.Enabled = false;
+            }
+            catch (SocketException ex)
+            {
+                TimeSpan delay = reconnectBackoff.NextDelay;
+                reconnectTimer.Interval = delay.TotalMilliseconds;
+                log.Error($"Reconnect has failed: {ex.Message}. Trying again in {delay.ToReadableString()}.");
+                reconnectTimer.Start();
+            }
+        }
+
+        private void HeartbeatMonitor_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            if (connection.Connected)
+            {
+                //connection.Sender.Names("#" + connection.ConnectionData.Nick.ToLower());
+                //this.SendMessage("#" + connection.ConnectionData.Nick.ToLower(), "heartbeat");
+                connection.Sender.PrivateMessage("connection.ConnectionData.Nick", "heartbeat " + DateTime.Now.ToString("s"));
+            }
         }
 
         public void Join(String channel)
@@ -67,23 +134,17 @@ namespace Twitch2Steam
 
         private void onJoin(UserInfo user, string channel)
         {
-            log.Debug($"{user} joined {channel}");
-            //Console.WriteLine(user.Nick + " joined " + channel);
+            log.Debug($"{user.User} joined {channel}");
         }
 
         private void OnQuit(UserInfo user, string reason)
         {
             log.Debug($"{user} quit ({reason ?? "no reason supplied"})");
-            //Console.WriteLine(user.Nick + " quit");
         }
 
         void OnPart(UserInfo user, string channel, string reason)
         {
             log.Debug($"{user} parted from {channel} ({reason ?? "no reason supplied"})");
-            /*if(reason == "")
-                Console.WriteLine(user.Nick + " parted from " + channel);
-            else
-                Console.WriteLine(user.Nick + " parted from " + channel + " because " + reason);*/
         }
 
         void OnPing(String message)
@@ -91,13 +152,16 @@ namespace Twitch2Steam
             log.Debug($"Ping: {message}");
         }
 
-        void Listener_OnInfo(string message, bool last)
+        void OnInfo(string message, bool last)
         {
             log.Info($"Info: {message}");
         }
 
+        private bool userInitiated = false;
         public void Exit()
-        {           
+        {
+            heartbeatMonitor.Stop();
+            userInitiated = true;
             if(connection.Connected)
                 connection.Disconnect("Goodbye Cruel World");
         }
@@ -111,24 +175,18 @@ namespace Twitch2Steam
             //caught.
             try
             {
+                //TODO FIX
                 connection.Sender.PrivateMessage("cruelcow", "I learned to whisper! " + DateTime.Now.ToShortTimeString());
             }
             catch (Exception e)
             {
                 log.Error("Unable to send private message", e);
-                //Console.WriteLine("Error in OnRegistered(): " + e);
             }
         }
 
         public void OnPrivate(UserInfo user, string message)
         {
             log.Debug($"IrC user {user} whispered: {message} ");
-            //Console.WriteLine(user.Nick + " whispered to me: " + message);
-            //Quit IRC if master sends us a 'die' message
-            /*if (message == "die" && user.Nick.ToLower().Equals("cruelcow"))
-            {
-                connection.Disconnect("Bye");
-            }*/
         }
 
         public void OnError(ReplyCode code, string message)
@@ -144,10 +202,23 @@ namespace Twitch2Steam
         {
             //If this disconnection was involutary then you should have received an error
             //message ( from OnError() ) before this was called.
-            log.Info("Connection to the server has been closed.");
+            if (userInitiated)
+            {
+                log.Info("Connection to the server has been closed.");
+            }
+            else
+            {
+                log.Error("Connection to the server has been closed.");
+                reconnectTimer.Start();
+            }
         }
 
-        public void Dispose()
+        public void OnDisconnecting()
+        {
+            log.Info("Disconnecting from twitch.");
+        }
+
+        public void Dispose() //TODO fix
         {
             Exit();
         }

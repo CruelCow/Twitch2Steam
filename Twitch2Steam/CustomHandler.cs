@@ -7,6 +7,7 @@ using SteamKit2.Internal; // this namespace stores the generated protobuf messag
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using log4net;
 
 namespace Twitch2Steam
 {
@@ -16,6 +17,8 @@ namespace Twitch2Steam
     /// </summary>
     public class CustomHandler : ClientMsgHandler
     {
+        private readonly ILog log = LogManager.GetLogger(typeof(CustomHandler));
+
         public override void HandleMsg(IPacketMsg packetMsg)
         {
             switch (packetMsg.MsgType)
@@ -47,16 +50,18 @@ namespace Twitch2Steam
                 case EMsg.ClientFriendMsgIncoming:
                 case EMsg.ClientFSOfflineMessageNotification:
                 case EMsg.ClientFSGetFriendMessageHistoryResponse:
-                    break;                
+                case EMsg.ClientChatInvite:
+                    break;
+
 
                 case EMsg.ClientMarketingMessageUpdate2:
                     //TODO mark as read.
                     break;
 
-
-                default: //"Unusual" packet, might be interesting
-                    Console.WriteLine("->" + packetMsg.MsgType);
+                    //case EMsg.
                     
+                default: //"Unusual" packet, might be interesting
+                    log.Warn($"Unusual message {packetMsg.MsgType}");
                     break;
             }
         }
