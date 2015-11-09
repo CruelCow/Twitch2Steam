@@ -20,11 +20,15 @@ namespace Twitch2Steam
 
         public TwitchBot()
         {
-            ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, Settings.Default.IrcServer);
-            cargs.Port = Settings.Default.Port;
-            cargs.ServerPassword = Settings.Default.IrcPassword;
+            var twitchServer = TwitchHelper.getRandomGroupChatServer();
 
-            log.Info($"Trying to connect to {cargs.Hostname}:{cargs.Port} as {Settings.Default.IrcName}");
+            ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, twitchServer.Address.ToString())
+            {
+                Port = twitchServer.Port,
+                ServerPassword = Settings.Default.IrcPassword
+            };
+            
+            log.Info($"Trying to connect to {cargs.Hostname} on Port {cargs.Port} as {Settings.Default.IrcName}");
 
             connection = new Connection(cargs, false, false);
 
@@ -116,7 +120,7 @@ namespace Twitch2Steam
             {
                 //connection.Sender.Names("#" + connection.ConnectionData.Nick.ToLower());
                 //this.SendMessage("#" + connection.ConnectionData.Nick.ToLower(), "heartbeat");
-                connection.Sender.PrivateMessage("connection.ConnectionData.Nick", "heartbeat " + DateTime.Now.ToString("s"));
+                connection.Sender.PrivateMessage(connection.ConnectionData.Nick, "heartbeat " + DateTime.Now.ToString("s"));
             }
         }
 
@@ -169,19 +173,16 @@ namespace Twitch2Steam
         public void OnRegistered()
         {
             log.Info("Successfully connected");
-            //Console.WriteLine("OnRegistered()");
-            //We have to catch errors in our delegates because Thresher purposefully
-            //does not handle them for us. Exceptions will cause the library to exit if they are not
-            //caught.
-            try
-            {
-                //TODO FIX
-                connection.Sender.PrivateMessage("cruelcow", "I learned to whisper! " + DateTime.Now.ToShortTimeString());
-            }
-            catch (Exception e)
-            {
-                log.Error("Unable to send private message", e);
-            }
+        }
+
+        public void Whisper(String user, String message)
+        {
+            //connection.Sender.PublicMessage("#cruelcow", "/w cruelcow I can whisper now!");
+            //connection.Sender.PrivateMessage("jtv", "/w cruelcow message2");
+            //Either are valid syntax, but only if connected to a "group chat" server
+            //Getting group chat server: http://blog.bashtech.net/twitch-group-chat-irc/
+
+            connection.Sender.PrivateMessage("jtv", $"/w {user} {message}");
         }
 
         public void OnPrivate(UserInfo user, string message)
