@@ -3,6 +3,8 @@ using Sharkbite.Irc;
 using log4net;
 using System.Timers;
 using System.Net.Sockets;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Twitch2Steam
 {
@@ -12,6 +14,9 @@ namespace Twitch2Steam
         private readonly Timer heartbeatMonitor;
         private readonly Timer reconnectTimer;
         private readonly ExponentialBackoff reconnectBackoff;
+
+        private readonly ISet<String> channelList;
+
         private readonly ILog log = LogManager.GetLogger(typeof(TwitchBot));
 
         private readonly Random random = new Random();
@@ -20,6 +25,8 @@ namespace Twitch2Steam
 
         public TwitchBot()
         {
+            channelList = new HashSet<String>();
+
             ConnectionArgs cargs = new ConnectionArgs(Settings.Default.IrcName, Settings.Default.IrcServer)
             {
                 Port = Settings.Default.Port,
@@ -91,6 +98,9 @@ namespace Twitch2Steam
                 connection.Connect();
                 log.Debug("Successfully reconnected");
 
+                log.Info($"Rejoining {channelList.Count} channel{(channelList.Count == 1 ? String.Empty : "s")}");
+                foreach (var channel in channelList)
+                    connection.Sender.Join(channel);
 
                 //If Enabled and AutoReset are both set to false, and the timer has previously been enabled,
                 //setting the Interval property causes the Elapsed event to be raised once, as if the Enabled 
@@ -126,12 +136,16 @@ namespace Twitch2Steam
         {
             log.Info($"Joining {channel}");
             connection.Sender.Join(channel);
+            bool added = channelList.Add(channel);
+            Debug.Assert(added);
         }
 
         public void Leave(String channel)
         {
             log.Info($"Leaving {channel}");
             connection.Sender.Part(channel);
+            bool removed = channelList.Remove(channel);
+            Debug.Assert(removed);
         }
 
         private void onJoin(UserInfo user, string channel)

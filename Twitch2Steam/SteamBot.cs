@@ -166,7 +166,6 @@ namespace Twitch2Steam
         {
             //TODO Warn users if twitch disconnected, but ensure that steam is connected first. 
             //this.Broadcast("Warning: I went offline");
-            //TODO rejoin all the irc channels when reconnecting
 
             log.Debug("Flags: " + callback.AccountFlags);
 
