@@ -93,12 +93,6 @@ namespace Twitch2Steam
 
         private void OnFriendMsg(SteamFriends.FriendMsgCallback callback)
         {
-            //TODO: belongs in glue 
-            if(callback.EntryType == EChatEntryType.InviteGame)
-            {
-                SendChatMessage(callback.Sender, $"{steamFriends.GetFriendGamePlayedName(callback.Sender)}? Nah, I'm not really into Pokémon.");
-            }
-
             if (OnFriendMessage != null)
                 OnFriendMessage(callback);
         }
@@ -288,6 +282,11 @@ namespace Twitch2Steam
         public virtual void Dispose()
         {
             Exit();
+        }
+
+        public String GetGamePlayedByFriend( SteamID friend )
+        {
+            return steamFriends.GetFriendGamePlayedName(friend);
         }
 
         public String SteamIdToName(SteamID id)

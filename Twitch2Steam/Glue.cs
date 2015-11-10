@@ -100,8 +100,7 @@ namespace Twitch2Steam
                     break;
 
                 case EChatEntryType.InviteGame:
-                    //steamBot.SendChatMessage(callback.Sender, "All work and no play for me :steamsad:");
-                    
+                    steamBot.SendChatMessage(callback.Sender, $"{steamBot.GetGamePlayedByFriend(callback.Sender)}? Nah, I'm not really into Pokémon.");
                     break;
 
                 default:
