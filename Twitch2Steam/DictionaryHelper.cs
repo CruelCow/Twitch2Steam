@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,11 @@ namespace Twitch2Steam
             dictionary[key] = value;
 
             return value;
+        }
+
+        public static bool IsEmpty<T>(this ICollection<T> list)
+        {
+            return list.Count == 0;
         }
 
         //TODO learn how to call

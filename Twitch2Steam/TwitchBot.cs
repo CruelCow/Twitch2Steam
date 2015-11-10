@@ -60,9 +60,7 @@ namespace Twitch2Steam
             connection.Listener.OnPart += new PartEventHandler(OnPart);
             connection.Listener.OnQuit += new QuitEventHandler(OnQuit);
             connection.Listener.OnInfo += new InfoEventHandler(OnInfo);
-
-            Join("#" + cargs.UserName.ToLower());
-
+            
             heartbeatMonitor = new Timer(TimeSpan.FromSeconds(60).TotalMilliseconds);
             heartbeatMonitor.AutoReset = true;
             heartbeatMonitor.Elapsed += HeartbeatMonitor_Elapsed;
@@ -185,19 +183,6 @@ namespace Twitch2Steam
         public void OnRegistered()
         {
             log.Info("Successfully connected");
-            //Console.WriteLine("OnRegistered()");
-            //We have to catch errors in our delegates because Thresher purposefully
-            //does not handle them for us. Exceptions will cause the library to exit if they are not
-            //caught.
-            try
-            {
-                //TODO FIX
-                connection.Sender.PrivateMessage("cruelcow", "I learned to whisper! " + DateTime.Now.ToShortTimeString());
-            }
-            catch (Exception e)
-            {
-                log.Error("Unable to send private message", e);
-            }
 
             //Request Join/Part messages etc. 
             //Supposedly only works in channels with <10 users

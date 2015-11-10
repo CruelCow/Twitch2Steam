@@ -16,7 +16,7 @@ namespace Twitch2Steam
     {
         private readonly ILog log = LogManager.GetLogger(typeof(Glue));
 
-        private readonly Object myLock; //TODO more fine grained lock?
+        private readonly Object myLock;
 
         private readonly TwitchBot twitchBot;
         private readonly SteamBot steamBot;
@@ -173,7 +173,7 @@ namespace Twitch2Steam
                 {
                     //Only admins may make users admins.
                     //The only exception is if there are no admins yet.
-                    if (adminList.Contains(sender) || adminList.Count == 0)
+                    if (adminList.Contains(sender) || adminList.IsEmpty())
                     {
                         String newAdmin = message.Split(new char[] { ' ' }, 3)[2];
                         SteamID newAdminId = new SteamID(newAdmin);
@@ -232,7 +232,7 @@ namespace Twitch2Steam
                         Debug.Assert(subscribers.Contains(sender));
                         subscribers.Remove(sender);
 
-                        if (subscribers.Count == 0)
+                        if (subscribers.IsEmpty())
                             toPart.Add(channel);
                     }
 
@@ -255,7 +255,7 @@ namespace Twitch2Steam
                         channel = '#' + channel;
 
                     var channelSubs = subscriptionsUsersMap.GetValueOrInsertDefault(channel);
-                    if (channelSubs.Count == 0)
+                    if (channelSubs.IsEmpty())
                     {
                         twitchBot.Join(channel);
                     }
@@ -289,12 +289,12 @@ namespace Twitch2Steam
 
                         steamBot.SendChatMessage(sender, "OK, you are not subscribed to " + channel + " anymore");
 
-                        if(usersSubscriptionsMap[sender].Count == 0)
+                        if(usersSubscriptionsMap[sender].IsEmpty())
                         {
                             usersSubscriptionsMap.Remove(sender);
                         }
 
-                        if (channelSubs.Count == 0)
+                        if (channelSubs.IsEmpty())
                         {
                             subscriptionsUsersMap.Remove(channel);
                             twitchBot.Leave(channel);

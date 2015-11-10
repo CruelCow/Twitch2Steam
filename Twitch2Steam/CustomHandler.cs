@@ -53,12 +53,9 @@ namespace Twitch2Steam
                 case EMsg.ClientChatInvite:
                     break;
 
-
                 case EMsg.ClientMarketingMessageUpdate2:
                     //TODO mark as read.
                     break;
-
-                    //case EMsg.
                     
                 default: //"Unusual" packet, might be interesting
                     log.Warn($"Unusual message {packetMsg.MsgType}");
