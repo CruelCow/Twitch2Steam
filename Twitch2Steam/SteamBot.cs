@@ -103,9 +103,9 @@ namespace Twitch2Steam
                 OnOfflineMessage.Invoke(messages.SteamID, messages.Messages);
         }
 
-        private void EchoMsg(SteamFriends.FriendMsgEchoCallback obj)
+        private void EchoMsg(SteamFriends.FriendMsgEchoCallback callback)
         {
-            log.Info("******ECHO: " + obj);
+            log.Warn($"Echo to {SteamIdToName(callback.Recipient)}: {callback.Message}");
         }
 
         public void loop()
