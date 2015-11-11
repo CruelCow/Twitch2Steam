@@ -3,7 +3,6 @@ using static System.Math;
 
 namespace Twitch2Steam
 {
-    //TODO: validate Timespans. (Overflow, negative values)
     public class ExponentialBackoff
     {
         public TimeSpan InitialDelay { get; private set; }
@@ -19,6 +18,21 @@ namespace Twitch2Steam
 
         public ExponentialBackoff( TimeSpan InitialDelay, double Factor, TimeSpan MaximumDelay, TimeSpan MaximumJitter )
         {
+            if (InitialDelay <= TimeSpan.Zero)
+                throw new ArgumentException("Illegal TimeSpan", nameof(InitialDelay));
+
+            if (MaximumDelay <= TimeSpan.Zero)
+                throw new ArgumentException("Illegal TimeSpan", nameof(MaximumDelay));
+
+            if (MaximumJitter < TimeSpan.Zero)
+                throw new ArgumentException("Illegal TimeSpan", nameof(MaximumJitter));
+
+            if (Factor <= 1)
+                throw new ArgumentException($"Illegal {nameof(Factor)}");
+
+            if (MaximumDelay < InitialDelay)
+                throw new ArgumentException($"{nameof(MaximumDelay)} must be bigger than {nameof(InitialDelay)}");
+
             this.InitialDelay = InitialDelay;
             this.Factor = Factor;
             this.MaximumDelay = MaximumDelay;
@@ -38,15 +52,14 @@ namespace Twitch2Steam
         {
             get
             {
-                //grow exponentially
-                //overflows if next Delay is ~universe age
-                nextDelay = Min(nextDelay * Factor, MaximumDelay.TotalMilliseconds);
+                checked
+                {
+                    nextDelay = Min(nextDelay * Factor, MaximumDelay.TotalMilliseconds);
 
-                //add jitter
-                //overflows if MaximumJitter is ~25 Days or more
-                nextDelay += rng.Next((int)MaximumJitter.TotalMilliseconds);
-                
-                return TimeSpan.FromMilliseconds(nextDelay);
+                    nextDelay += rng.Next(( int )MaximumJitter.TotalMilliseconds);
+
+                    return TimeSpan.FromMilliseconds(nextDelay);
+                }
             }
         }
     }
