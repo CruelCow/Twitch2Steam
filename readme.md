@@ -1,3 +1,4 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/ci4chkjeur07w87c?svg=true)](https://ci.appveyor.com/project/CruelCow/twitch2steam) [![Build Status](https://travis-ci.org/CruelCow/Twitch2Steam.svg)](https://travis-ci.org/CruelCow/Twitch2Steam)
 #Twitch2Steam
 
 Twitch2Steam aka TwitchRelay is a bot which listens to messages in Twitch Chat and forwards them via Steam chat. This allows streamers to follow their chat without needing a second monitor. 
