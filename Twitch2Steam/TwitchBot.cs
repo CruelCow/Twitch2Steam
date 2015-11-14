@@ -178,6 +178,11 @@ namespace Twitch2Steam
         public void Exit()
         {
             heartbeatMonitor.Stop();
+            heartbeatMonitor.Dispose();
+
+            reconnectTimer.Stop();
+            reconnectTimer.Dispose();
+
             userInitiated = true;
             if(connection.Connected)
                 connection.Disconnect("Goodbye Cruel World");
@@ -229,9 +234,17 @@ namespace Twitch2Steam
             log.Info("Disconnecting from twitch.");
         }
 
-        public void Dispose() //TODO fix
+        public void Dispose()
         {
-            Exit();
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(Boolean disposing)
+        {
+            if(disposing)
+            {
+                Exit();
+            }
         }
 
         public void SendMessage(String channel, String text)

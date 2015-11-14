@@ -341,9 +341,17 @@ namespace Twitch2Steam
             steamClient.Disconnect();
         }
 
-        public virtual void Dispose()
+        public void Dispose()
         {
-            Exit();
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(Boolean disposing)
+        {
+            if (disposing)
+            {
+                Exit();
+            }
         }
 
         public String GetGamePlayedByFriend( SteamID friend )
