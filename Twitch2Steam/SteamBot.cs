@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using SteamKit2;
-using SteamKit2.Internal;
 using log4net;
 using System.Threading;
 using System.Linq;
+using System.Collections.ObjectModel;
 
 namespace Twitch2Steam
 {
     public delegate void FriendMessageEventHandler (SteamFriends.FriendMsgCallback callback);
-    public delegate void OfflineMessageEventHandler(SteamID user, List<CMsgClientFSGetFriendMessageHistoryResponse.FriendMessage> messages);
+    public delegate void OfflineMessageEventHandler(SteamID user, ReadOnlyCollection<SteamFriends.FriendMsgHistoryCallback.FriendMessage> messages);
     
     //public delegate void FriendAcceptedEventHandler(SteamFriends.FriendsListCallback.Friend friend);
 

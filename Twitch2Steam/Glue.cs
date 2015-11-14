@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Collections.Specialized;
-using SteamKit2.Internal;
 using log4net;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections.ObjectModel;
 
 namespace Twitch2Steam
 {
@@ -78,13 +78,13 @@ namespace Twitch2Steam
             }
         }
         
-        private void steamBot_OnOfflineMessage(SteamID user, List<CMsgClientFSGetFriendMessageHistoryResponse.FriendMessage> messages)
+        private void steamBot_OnOfflineMessage(SteamID user, ReadOnlyCollection<SteamFriends.FriendMsgHistoryCallback.FriendMessage> messages)
         {
             log.Debug($"{messages.Count} messages from {user}");
             foreach (var message in messages)
             {
-                if(message.unread)
-                    handleCommand(user, message.message);
+                if(message.Unread)
+                    handleCommand(user, message.Message);
             }
         }
 
