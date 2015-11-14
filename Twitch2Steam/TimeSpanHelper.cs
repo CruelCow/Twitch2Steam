@@ -18,8 +18,8 @@ namespace Twitch2Steam
                 span.Duration().Milliseconds > 0 ? string.Format("{0:0} millisecond{1}, ", span.Milliseconds, span.Milliseconds == 1 ? String.Empty : "s") : string.Empty
                 );
 
-            //if (formatted.EndsWith(", ")) 
-            formatted = formatted.Substring(0, formatted.Length - 2);
+            if (formatted.EndsWith(", ")) 
+                formatted = formatted.Substring(0, formatted.Length - 2);
 
             if (string.IsNullOrEmpty(formatted)) formatted = "0 seconds";
 
