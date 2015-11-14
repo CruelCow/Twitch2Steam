@@ -5,6 +5,8 @@ using log4net;
 using System.Threading;
 using System.Linq;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Security.Cryptography;
 
 namespace Twitch2Steam
 {
@@ -24,6 +26,10 @@ namespace Twitch2Steam
         private readonly SteamUser steamUser;
         private readonly SteamFriends steamFriends;
         private readonly SteamApps steamApps;
+
+        //Steamguard Helpers
+        private String authCode;
+        private String twoFactorCode;
 
         private volatile bool isRunning;
 
@@ -67,7 +73,8 @@ namespace Twitch2Steam
             manager.Subscribe<SteamFriends.FriendMsgEchoCallback>(EchoMsg);
             manager.Subscribe<SteamFriends.FriendMsgHistoryCallback>(ch_OnOfflineMessage2);
             manager.Subscribe<SteamFriends.ChatInviteCallback>(OnChatInvite);
-            
+            manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
+
 
             isRunning = true;
 
@@ -129,10 +136,20 @@ namespace Twitch2Steam
 
             log.Info($"Connected to Steam! Logging in as {Settings.Default.SteamName}'");
 
+            byte[] sentryHash = null;
+            if (File.Exists("sentry.bin"))
+            {
+                byte[] sentryFile = File.ReadAllBytes("sentry.bin");
+                sentryHash = CryptoHelper.SHAHash(sentryFile);
+            }
+
             steamUser.LogOn(new SteamUser.LogOnDetails
             {
                 Username = Settings.Default.SteamName,
                 Password = Settings.Default.SteamPassword,
+                AuthCode = authCode,
+                TwoFactorCode = twoFactorCode,
+                SentryFileHash = sentryHash
             });
 
             reconnectBackoff.Reset();
@@ -161,11 +178,35 @@ namespace Twitch2Steam
             //TODO Warn users if twitch disconnected, but ensure that steam is connected first. 
             //this.Broadcast("Warning: I went offline");
 
+
+            if (callback.Result == EResult.AccountLoginDeniedNeedTwoFactor)
+            {
+                Console.Error.WriteLine("Account is protected by SteamGuard. Please enter code from your mobile app: ");
+                twoFactorCode = Console.ReadLine();
+                return;
+            }
+            else if (callback.Result == EResult.AccountLogonDenied)
+            {
+                Console.Error.WriteLine($"Account is protected by SteamGuard. Please enter the code sent to your account at {callback.EmailDomain}: ");
+                authCode = Console.ReadLine();
+                return;
+            }
+
+            if (callback.Result != EResult.OK)
+            {
+                log.Fatal($"Unable to logon to Steam: {callback.Result} / {callback.ExtendedResult}");
+
+                isRunning = false;
+                return;
+            }
+
+
+            //TODO: Don't hardcode
             log.Debug("Flags: " + callback.AccountFlags);
 
-            var possibleFlags = Enum.GetValues(typeof(EAccountFlags)).Cast<Enum>();           
-            var expectedFlags = (EAccountFlags.PersonaNameSet | EAccountFlags.PasswordSet | EAccountFlags.HWIDSet | EAccountFlags.LimitedUser | EAccountFlags.Steam2MigrationComplete);
-            
+            var possibleFlags = Enum.GetValues(typeof(EAccountFlags)).Cast<Enum>();
+            var expectedFlags = (EAccountFlags.PersonaNameSet | EAccountFlags.PasswordSet | EAccountFlags.HWIDSet | EAccountFlags.LimitedUser | EAccountFlags.Steam2MigrationComplete | EAccountFlags.EmailValidated | EAccountFlags.LogonExtraSecurity);
+
             foreach (var flag in possibleFlags.Where(flag => callback.AccountFlags.HasFlag(flag) && !expectedFlags.HasFlag(flag)))
             {
                 log.Warn("Unexpected Account Flag: " + flag);
@@ -174,25 +215,6 @@ namespace Twitch2Steam
             foreach (var flag in possibleFlags.Where(flag => !callback.AccountFlags.HasFlag(flag) && expectedFlags.HasFlag(flag)))
             {
                 log.Warn("Expected Account Flag missing: " + flag);
-            }
-
-            if (callback.Result != EResult.OK)
-            {
-                if (callback.Result == EResult.AccountLogonDenied)
-                {
-                    // if we recieve AccountLogonDenied or one of it's flavors (AccountLogonDeniedNoMailSent, etc)
-                    // then the account we're logging into is SteamGuard protected
-                    // see sample 5 for how SteamGuard can be handled
-
-                    log.Fatal("Unable to logon to Steam: This account is SteamGuard protected.");
-                }
-                else
-                {
-                    log.Fatal($"Unable to logon to Steam: {callback.Result} / {callback.ExtendedResult}");
-                }
-
-                isRunning = false;
-                return;
             }
 
             log.Info("Successfully logged on!");
@@ -272,6 +294,44 @@ namespace Twitch2Steam
         {
             log.Warn("Logged off of Steam: " + callback.Result);
         }
+
+        private void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
+        {
+            int fileSize;
+            byte[] sentryHash;
+            using (var fs = File.Open("sentry.bin", FileMode.OpenOrCreate, FileAccess.ReadWrite))
+            {
+                fs.Seek(callback.Offset, SeekOrigin.Begin);
+                fs.Write(callback.Data, 0, callback.BytesToWrite);
+                fileSize = ( int )fs.Length;
+
+                fs.Seek(0, SeekOrigin.Begin);
+                using (var sha = new SHA1CryptoServiceProvider())
+                {
+                    sentryHash = sha.ComputeHash(fs);
+                }
+            }
+
+            // inform the steam servers that we're accepting this sentry file
+            steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
+            {
+                JobID = callback.JobID,
+
+                FileName = callback.FileName,
+
+                BytesWritten = callback.BytesToWrite,
+                FileSize = fileSize,
+                Offset = callback.Offset,
+
+                Result = EResult.OK,
+                LastError = 0,
+
+                OneTimePassword = callback.OneTimePassword,
+
+                SentryFileHash = sentryHash,
+            });
+        }
+
 
         public void Exit()
         {

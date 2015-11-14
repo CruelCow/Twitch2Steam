@@ -52,6 +52,7 @@ namespace Twitch2Steam
                 case EMsg.ClientFSGetFriendMessageHistoryResponse:
                 case EMsg.ClientChatInvite:
                 case EMsg.ClientFriendMsgEchoToSender:
+                case EMsg.ClientUpdateMachineAuth:
                     break;
 
                 case EMsg.ClientMarketingMessageUpdate2:
