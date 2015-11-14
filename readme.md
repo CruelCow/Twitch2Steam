@@ -15,7 +15,7 @@ This bot is still in early development, use with caution
 
 ##Building
 
-This project references [SteamKit](https://github.com/SteamRE/SteamKit) and [Thresher IRC](http://thresher.sourceforge.net/) 
+This project references [SteamKit](https://github.com/SteamRE/SteamKit), [Thresher IRC](http://thresher.sourceforge.net/) and [log4net](https://logging.apache.org/log4net/). They are all included in the /lib/ folder.
 
 ##Affiliation
 
