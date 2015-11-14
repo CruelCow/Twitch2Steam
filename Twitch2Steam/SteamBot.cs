@@ -297,6 +297,7 @@ namespace Twitch2Steam
 
         private void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
         {
+            log.Debug("Received new sentry file");
             int fileSize;
             byte[] sentryHash;
             using (var fs = File.Open("sentry.bin", FileMode.OpenOrCreate, FileAccess.ReadWrite))
