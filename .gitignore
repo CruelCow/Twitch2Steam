@@ -29,4 +29,3 @@ packages
 
 # Allow NuGet specific exes and dlls
 !.nuget/Microsoft.Build.dll
-Twitch2Steam/Settings.Designer.cs
