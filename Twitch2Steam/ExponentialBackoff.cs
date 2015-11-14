@@ -44,8 +44,8 @@ namespace Twitch2Steam
 
         public TimeSpan Reset()
         {
-            nextDelay = InitialDelay.TotalMilliseconds;
-            return InitialDelay;
+            nextDelay = 0;
+            return TimeSpan.Zero;
         }
 
         public TimeSpan NextDelay
@@ -54,11 +54,19 @@ namespace Twitch2Steam
             {
                 checked
                 {
-                    nextDelay = Min(nextDelay * Factor, MaximumDelay.TotalMilliseconds);
+                    if (nextDelay == 0)
+                    {
+                        nextDelay = InitialDelay.TotalMilliseconds;
+                        return TimeSpan.Zero;
+                    }
+                    else
+                    {
+                        nextDelay = Min(nextDelay * Factor, MaximumDelay.TotalMilliseconds);
 
-                    nextDelay += rng.Next(( int )MaximumJitter.TotalMilliseconds);
+                        nextDelay += rng.Next(( int )MaximumJitter.TotalMilliseconds);
 
-                    return TimeSpan.FromMilliseconds(nextDelay);
+                        return TimeSpan.FromMilliseconds(nextDelay);
+                    }
                 }
             }
         }
