@@ -41,6 +41,13 @@ namespace Twitch2Steam
             steamBot.OnOfflineMessage += steamBot_OnOfflineMessage;
         }
 
+        public void Run()
+        {
+            twitchBot.Connect();
+            steamBot.Connect();
+            steamBot.loop();
+        }
+
         private ISet<SteamID> LoadAdmins()
         {
             var adminLog = new StringBuilder();

@@ -72,7 +72,10 @@ namespace Twitch2Steam
             reconnectTimer.Elapsed += ReconnectTimer_Elapsed;
 
             reconnectBackoff = new ExponentialBackoff();
+        }
 
+        public void Connect()
+        {
             try
             {
                 connection.Connect();

@@ -17,8 +17,6 @@ namespace Twitch2Steam
             {
             //    var twitchBot = new TwitchBot2();
                 Glue glue = new Glue(twitchBot, steamBot);
-
-                steamBot.loop();
             }
         }
     }

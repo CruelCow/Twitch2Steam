@@ -74,10 +74,11 @@ namespace Twitch2Steam
             manager.Subscribe<SteamFriends.FriendMsgHistoryCallback>(ch_OnOfflineMessage2);
             manager.Subscribe<SteamFriends.ChatInviteCallback>(OnChatInvite);
             manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
+        }
 
-
+        public void Connect()
+        {
             isRunning = true;
-
             log.Info("Connecting...");
 
             // initiate the connection
