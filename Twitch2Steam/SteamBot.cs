@@ -156,8 +156,6 @@ namespace Twitch2Steam
             reconnectBackoff.Reset();
         }
 
-        private readonly Random random = new Random();
-
         private void OnDisconnected(SteamClient.DisconnectedCallback callback)
         {
             if (callback.UserInitiated)

@@ -19,8 +19,6 @@ namespace Twitch2Steam
 
         private readonly ILog log = LogManager.GetLogger(typeof(TwitchBot));
 
-        private readonly Random random = new Random();
-
         public event PublicMessageEventHandler OnPublicMessage;
 
         public TwitchBot()
