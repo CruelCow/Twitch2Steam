@@ -127,7 +127,7 @@ namespace Twitch2Steam
                 return;
             }
 
-            log.Info("Connected to Steam! Logging in as {Settings.Default.SteamName}'");
+            log.Info($"Connected to Steam! Logging in as {Settings.Default.SteamName}'");
 
             steamUser.LogOn(new SteamUser.LogOnDetails
             {
