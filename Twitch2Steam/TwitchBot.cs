@@ -10,7 +10,7 @@ namespace Twitch2Steam
 {
     public class TwitchBot : IDisposable
     {
-        private Connection connection;
+        private readonly Connection connection;
         private readonly Timer heartbeatMonitor;
         private readonly Timer reconnectTimer;
         private readonly ExponentialBackoff reconnectBackoff;
@@ -36,15 +36,14 @@ namespace Twitch2Steam
             connection = new Connection(cargs, false, false);
 
             connection.Listener.OnRegistered += new RegisteredEventHandler(OnRegistered);
+            connection.Listener.OnRegistered += new RegisteredEventHandler(ResetHeartbeatMonitor);
 
-            connection.Listener.OnPublic += delegate (UserInfo user, string channel, string message)
-                {
-                    if (OnPublicMessage != null)
-                        OnPublicMessage.Invoke(user, channel, message);
-                };
+            connection.Listener.OnPublic += new PublicMessageEventHandler(OnPublic);
+            connection.Listener.OnPublic += new PublicMessageEventHandler((a, b, c) => ResetHeartbeatMonitor());
 
             //Listen for bot commands sent as private messages
             connection.Listener.OnPrivate += new PrivateMessageEventHandler(OnPrivate);
+            connection.Listener.OnPrivate += new PrivateMessageEventHandler((a, b) => ResetHeartbeatMonitor());
 
             //Listen for notification that an error has ocurred 
             connection.Listener.OnError += new ErrorMessageEventHandler(OnError);
@@ -54,22 +53,38 @@ namespace Twitch2Steam
             connection.Listener.OnDisconnecting += new DisconnectingEventHandler(OnDisconnecting);
             
             connection.Listener.OnPing += new PingEventHandler(OnPing);
+            connection.Listener.OnPing += new PingEventHandler((a) => ResetHeartbeatMonitor());
             connection.Listener.OnJoin += new JoinEventHandler(onJoin);
+            connection.Listener.OnJoin += new JoinEventHandler((a, b) => ResetHeartbeatMonitor());
             connection.Listener.OnPart += new PartEventHandler(OnPart);
+            connection.Listener.OnPart += new PartEventHandler((a, b, c) => ResetHeartbeatMonitor());
             connection.Listener.OnQuit += new QuitEventHandler(OnQuit);
             connection.Listener.OnInfo += new InfoEventHandler(OnInfo);
-            
-            heartbeatMonitor = new Timer(TimeSpan.FromSeconds(60).TotalMilliseconds);
+            connection.Listener.OnInfo += new InfoEventHandler((a, b) => ResetHeartbeatMonitor());
+
+            heartbeatMonitor = new Timer(TimeSpan.FromSeconds(10).TotalMilliseconds);
             heartbeatMonitor.AutoReset = true;
             heartbeatMonitor.Elapsed += HeartbeatMonitor_Elapsed;
             heartbeatMonitor.Start();
-
 
             reconnectTimer = new Timer();
             reconnectTimer.AutoReset = false;
             reconnectTimer.Elapsed += ReconnectTimer_Elapsed;
 
             reconnectBackoff = new ExponentialBackoff();
+        }
+
+        private void OnPublic(UserInfo user, string channel, string message)
+        {
+            if (OnPublicMessage != null)
+                OnPublicMessage.Invoke(user, channel, message);            
+        }
+
+        //We just received a message, connection is clearly alive
+        private void ResetHeartbeatMonitor()
+        {
+            heartbeatMonitor.Stop();
+            heartbeatMonitor.Start();
         }
 
         public void Connect()
@@ -128,6 +143,7 @@ namespace Twitch2Steam
                 //connection.Sender.Names("#" + connection.ConnectionData.Nick.ToLower());
                 //this.SendMessage("#" + connection.ConnectionData.Nick.ToLower(), "heartbeat");
                 connection.Sender.PrivateMessage(connection.ConnectionData.Nick, "heartbeat " + DateTime.Now.ToString("s"));
+                log.Debug("PING");
             }
         }
 
