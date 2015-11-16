@@ -1,14 +1,14 @@
-﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using Twitch2Steam;
 
 namespace Twitch2SteamTest
 {
-    [TestClass]
+    [TestFixture]
     public class StringMapperTest
     {
-        [TestMethod]
+        [Test]
         public void TestWordBounderies()
         {
             var mapper = new StringMapper(new Dictionary<String, String>()
@@ -19,7 +19,7 @@ namespace Twitch2SteamTest
             Assert.AreEqual("KappaRoss :steammocking: Kappa!", mapper.Map("KappaRoss Kappa Kappa!"));
         }
 
-        [TestMethod]
+        [Test]
         public void TestEmptyDictionary()
         {
             var mapper = new StringMapper(new Dictionary<String, String>());

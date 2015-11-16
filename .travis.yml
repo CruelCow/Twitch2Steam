@@ -1,2 +1,11 @@
+sudo: false
 language: csharp
 solution: Twitch2Steam.sln
+
+install:
+   - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
+
+script:
+   - xbuild /p:Configuration=Debug Twitch2Steam.sln
+   - xbuild /p:Configuration=Release Twitch2Steam.sln
+   - mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./Twitch2SteamTest/bin/Release/Twitch2SteamTest.dll
