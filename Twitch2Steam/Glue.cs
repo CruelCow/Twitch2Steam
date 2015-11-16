@@ -23,6 +23,8 @@ namespace Twitch2Steam
         private readonly Dictionary<String, HashSet<SteamID>> subscriptionsUsersMap;
         private readonly Dictionary<SteamID, ISet<String>> usersSubscriptionsMap;
 
+        private readonly StringMapper smileyTranslater;
+
         private readonly ISet<SteamID> adminList;
 
         public Glue(TwitchBot twitchBot, SteamBot steamBot)
@@ -34,11 +36,21 @@ namespace Twitch2Steam
             usersSubscriptionsMap = new Dictionary<SteamID, ISet<String>>();
 
             adminList = LoadAdmins();
-            
-            twitchBot.OnPublicMessage += delegate(UserInfo user, String channel, String message) { log.Debug($"{user.Nick}: {message}"); };
+
+            twitchBot.OnPublicMessage += delegate (UserInfo user, String channel, String message) { log.Debug($"{user.Nick}: {message}"); };
             twitchBot.OnPublicMessage += OnTwitchPublicMessage;
             steamBot.OnFriendMessage += OnSteamFriendMessage;
             steamBot.OnOfflineMessage += steamBot_OnOfflineMessage;
+
+            //TODO: Put into config file?
+            smileyTranslater = new StringMapper(new Dictionary<String, String>()
+            {
+                { "BibleThump", ":steamsad:" },
+                { "Kappa", ":steammocking:" },
+                { "FailFish", ":steamfacepalm:" },
+                { "PJSalt", ":steamsalty:" },
+                { "ResidentSleeper", ":steambored:" }
+            });
         }
 
         public void Run()
@@ -78,9 +90,10 @@ namespace Twitch2Steam
         {
             lock (myLock)
             {
+                var steamMessage = user.Nick + ": " + smileyTranslater.Map(message);
                 foreach (var target in subscriptionsUsersMap.GetValueOrInsertDefault(channel, typeof(HashSet<SteamID>)))
                 {
-                    steamBot.SendChatMessage(target, user.Nick + ": " + message);
+                    steamBot.SendChatMessage(target, steamMessage);
                 }
             }
         }
